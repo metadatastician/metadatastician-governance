@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Estate Profile
+
+The Metadatastician explores metadata as an art and engineering of context: tools for reading, preserving, and contesting the hidden structures around things. This repository governs the estate as an adopting and particularising profile.
+
+Hyperpolymath supplies reusable upstream constitutional and standards foundations. This profile selects what applies, names local authorities and routes, and records deviations. Individual repositories remain responsible for implementation evidence and a local binding.
+
+Automated classification does not become final merely by passing validation. An affected person may request the applicable rule, relevant evidence, human decision authority, correction, and recorded appeal through the governance issue tracker or the private security route when disclosure would create harm.

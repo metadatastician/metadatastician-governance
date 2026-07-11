@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Assurance Profile
+
+Projects MUST label material claims `draft`, `designed`, `assumed`, `tested`, `audited`, or `proven` and identify boundary, assumptions, evidence, tool/version where relevant, limitations, and responsible authority. A repository shape or passing workflow alone is not conformance.
+
+Local bindings record sensitive areas and assurance status. Human review is required for classifications or automated decisions that materially affect a person. Review considers faithful representation, not only formal validity.
+
+Risk acceptance records responsible authority, alternatives, residual risk, expiry/review date, and challenge route. Ordinary rollback is not an MAA claim.

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Authority Map
+
+[cols="1,3",options="header"]
+|===
+|Layer |Authority
+|Upstream constitution and standards |Pinned `hyperpolymath/standards` sources; reusable foundation, subject to explicit adoption
+|This repository |Local estate profile, adoption choices, deviations, contribution/security routes, and known tensions
+|Project binding |Repository-specific applicable profiles, exceptions, local authority, and review date
+|Evidence |Tests, audits, proofs, benches, incidents, and STATE records describing what currently holds
+|===
+
+The Metadatastician maintainers named by repository ownership approve local policy after review. A lower layer cannot silently contradict a higher applicable layer. Generated output and implementation behaviour cannot create policy authority.

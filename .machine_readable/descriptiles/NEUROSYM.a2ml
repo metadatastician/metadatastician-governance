@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+
+[assurance]
+formal-validation-is-proof = false
+faithful-representation-required = true
+claim-statuses = ["draft", "designed", "assumed", "tested", "audited", "proven"]

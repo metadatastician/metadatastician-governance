@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Adoption and Deviations
+
+Upstream: `https://github.com/hyperpolymath/standards` at `2ccc38eaaf8787034ed099e0b72c9ca8b85dc563`.
+
+== Adopted now
+
+* A2ML placement convention: universal `0-AI-MANIFEST.a2ml` at root; ordinary metadata under `.machine_readable/`.
+* Descriptile naming for new metadata.
+* Separation of authority, profiles, local bindings, and evidence.
+* Evidence-status honesty: draft, designed, assumed, tested, audited, and proven are not interchangeable.
+
+== Proposed adoption
+
+The Hyperpolymath constitutional district on `constitution/estate-foundation` is under review. Its authority, assurance, contribution, exception, challenge, and tension principles are proposed for adoption after upstream merge and a pinned-hash update.
+
+== Not automatically applicable
+
+Language/toolchain profiles, release requirements, MAA profiles, and implementation-specific standards apply only when a project binding selects them. Organisational distinction alone does not create a Metadatastician standards fork.
+
+== Deviations
+
+No substantive deviation is authorised in this initial draft. Existing repositories may predate current metadata and terminology conventions; that is migration debt, not an implicit deviation. Each exception requires scope, authority, reason, containment, evidence status, and review date.

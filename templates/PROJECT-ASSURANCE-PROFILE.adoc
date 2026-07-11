@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Project Assurance Profile
+
+Subject/version:: _required_
+Assurance status:: _draft/designed/assumed/tested/audited/proven_
+Observation model and boundary:: _required_
+Assumptions and evidence:: _required_
+Known limitations/residual risk:: _required_
+Responsible authority and review date:: _required_

@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Code of Conduct
+
+Participate with respect for consent, privacy, good-faith challenge, and the particular circumstances of affected people. Harassment, retaliation for governance challenge, and deliberate exposure of secrets or sensitive personal data are not accepted. Report sensitive conduct concerns privately through the security route.

@@ -1,0 +1,4 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Repository Governance
+
+This repository's maintainers steward The Metadatastician's local adopting profile. They may particularise adopted upstream rules but may not present a local rewrite as upstream authority. Decisions follow `CHANGE-PROCEDURE.adoc` and remain challengeable.
