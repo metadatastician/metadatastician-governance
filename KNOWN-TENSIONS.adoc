@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Known Tensions
+
+[cols="2,1,1,3,3,1",options="header"]
+|===
+|Tension |Class |Priority |Containment |Next action |Evidence
+|No separate public/profile repository |capacity limitation |medium |Governance README is the discoverable route |Human decision on creating an organisation profile |observed
+|Legacy repository metadata vs current descriptiles |terminology drift |medium |New files use current placement; no mass rewrite |Pilot one low-risk binding after review |observed
+|Upstream constitution not yet merged |known incomplete work |high |Mark as proposed; pin current upstream main |Update pin after upstream adoption |observed
+|Machine classification vs contextual particularity |architectural tension |high |Require human challenge and faithful-representation review |Define project-sensitive-area guidance |designed
+|Open contribution vs restricted core authority |architectural tension |medium |Use published perimeters and appeals |Ratify contributor transition criteria |designed
+|===

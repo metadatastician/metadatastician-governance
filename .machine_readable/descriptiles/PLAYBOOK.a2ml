@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+
+[playbook]
+change-order = ["identify authority", "pin upstream", "record impact and evidence", "invite challenge", "obtain human approval", "validate", "record decision"]
+security-route = "SECURITY.md"
+contribution-route = "CONTRIBUTING.adoc"

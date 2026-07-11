@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+last-updated = "2026-07-11"
+
+[project-info]
+type = "governance"
+languages = []
+license = "MPL-2.0"
+owner = "metadatastician"
+authority-class = "local-policy"
+upstream = "hyperpolymath/standards@2ccc38eaaf8787034ed099e0b72c9ca8b85dc563"

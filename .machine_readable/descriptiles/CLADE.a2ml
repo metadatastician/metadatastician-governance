@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+
+[classification]
+authority = "local-policy"
+domain = "estate-governance"
+kind = "adopting-profile"
+audience = ["maintainers", "contributors", "affected-people", "agents"]
+lifecycle = "draft"
+canonicality = "canonical-local"

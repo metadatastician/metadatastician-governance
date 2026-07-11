@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+last-updated = "2026-07-11"
+
+[project]
+name = "metadatastician-governance"
+purpose = "Adopting governance profile for The Metadatastician estate"
+
+[policy]
+read-first = ["README.adoc", "AGENTS.md", "ESTATE-PROFILE.adoc", "AUTHORITY-MAP.adoc", "ADOPTION-AND-DEVIATIONS.adoc"]
+rules = [
+  "Do not silently redefine or copy upstream normative standards.",
+  "Do not treat proposals as authorised policy or validation as proof.",
+  "Keep ordinary A2ML metadata under .machine_readable/.",
+  "Require human review and a challenge route for material classifications.",
+]

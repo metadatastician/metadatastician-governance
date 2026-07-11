@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Security and Assurance
+
+Use the private route in link:SECURITY.md[SECURITY.md] for vulnerabilities, secrets, or reports that would create harm if public. Use a governance issue for assurance classification, policy application, or challenge where public discussion is safe.
+
+Containment may precede full review. Continuing restriction requires a responsible human authority, evidence preservation, proportional scope, release conditions, and an appeal route. Provenance records must permit legitimate redaction and secret destruction without claiming that removed information remains recoverable.

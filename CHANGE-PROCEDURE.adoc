@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Change Procedure
+
+. Open a proposal naming authority, scope, upstream impact, alternatives, evidence status, and affected parties.
+. Record any adoption, refinement, non-applicability, or deviation and its exact upstream pin.
+. Allow maintainers and affected people a meaningful review/challenge period.
+. Obtain approval from the responsible Metadatastician authority; upstream text changes require upstream review, not a local rewrite.
+. Record decision, dissent, effective hash/version, migration, and review date.
+
+Emergency containment is temporary and does not itself authorise permanent policy.

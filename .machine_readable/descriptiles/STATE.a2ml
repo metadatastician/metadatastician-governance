@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+last-updated = "2026-07-11"
+
+[state]
+lifecycle = "draft"
+evidence-status = "designed"
+upstream-constitution-status = "proposed"
+validation-status = "not-yet-run"
+known-blockers = ["assurance source pack unavailable", "upstream constitution not merged"]

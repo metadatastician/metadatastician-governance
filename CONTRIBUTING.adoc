@@ -1,0 +1,6 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Contributing
+
+Open an issue before changing estate authority. State the purpose, authority affected, evidence status, and any upstream rule selected or challenged. Keep implementation changes out of governance pull requests. Security-sensitive reports follow `SECURITY.md`.
+
+Contributions are reviewed under the tri-perimeter model in `CONTRIBUTION-CONSTITUTION.adoc`. Submission does not imply adoption, conformance, or transfer beyond the repository licence and any separately reviewed agreement.

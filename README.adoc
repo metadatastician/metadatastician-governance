@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= The Metadatastician Governance
+:toc:
+
+Status: *Draft adopting profile for review*.
+
+This repository is the organisation-wide governance home for The Metadatastician. It particularises and adopts Hyperpolymath standards; it does not copy or silently redefine their constitutional or normative text.
+
+== Start here
+
+* link:ESTATE-PROFILE.adoc[Estate profile and purpose]
+* link:AUTHORITY-MAP.adoc[Authority map]
+* link:ADOPTION-AND-DEVIATIONS.adoc[Adoptions, non-applicability, and deviations]
+* link:ASSURANCE-PROFILE.adoc[Assurance profile]
+* link:CONTRIBUTION-CONSTITUTION.adoc[Contribution policy]
+* link:SECURITY-AND-ASSURANCE.adoc[Security and assurance routes]
+* link:KNOWN-TENSIONS.adoc[Known tensions and limitations]
+* link:CHANGE-PROCEDURE.adoc[Policy change and challenge procedure]
+
+Individual projects bind through the templates in `templates/`. Machine-readable templates live under `.machine_readable/templates/`. Security reports follow link:SECURITY.md[SECURITY.md]; contributions follow link:CONTRIBUTING.adoc[CONTRIBUTING.adoc].
+
+== Upstream pin
+
+This draft targets `hyperpolymath/standards` commit `2ccc38eaaf8787034ed099e0b72c9ca8b85dc563`. The constitutional district is proposed on `constitution/estate-foundation` and is not represented here as adopted policy until its review completes and the pin is updated.
+
+No RSR, OpenSSF, MAA, audit, or proof conformance is claimed by the presence of these files.

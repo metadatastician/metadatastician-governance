@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Contribution Constitution
+
+Status: *Draft for governance review*.
+
+Contribution authority is separate from intellectual-property permission and provenance attestation.
+
+Perimeter 1 — Core:: Named maintainers; high-impact changes require explicit review.
+Perimeter 2 — Trusted contributors:: Broader authority earned through public, reviewable criteria.
+Perimeter 3 — Community sandbox:: Low-risk proposals and experiments without implied adoption.
+
+Movement between perimeters must be explained and challengeable. No undisclosed founder-only authorship test applies. Any contributor-agreement text based on legal concepts remains labelled *Draft for Legal Review* and is neither legal advice nor an executed agreement.

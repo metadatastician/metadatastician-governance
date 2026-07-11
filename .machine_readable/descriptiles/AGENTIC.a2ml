@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MPL-2.0
+[metadata]
+version = "0.1.0"
+
+[agent-policy]
+authority = "bounded"
+may-authorise-policy = false
+human-review-required = ["material classification", "exception", "deviation", "risk acceptance", "policy adoption"]
+challenge-route = "CHANGE-PROCEDURE.adoc"

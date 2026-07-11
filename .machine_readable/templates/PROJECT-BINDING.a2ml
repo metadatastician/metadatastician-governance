@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MPL-2.0
+[binding]
+governance-upstream-hash = "REQUIRED"
+applicable-profiles = []
+local-exceptions = []
+local-authority = "REQUIRED"
+assurance-status = "draft"
+sensitive-areas = []
+contribution-perimeter = "REQUIRED"
+security-route = "REQUIRED"
+review-date = "REQUIRED"
