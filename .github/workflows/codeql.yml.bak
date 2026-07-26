@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: MPL-2.0
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+
+      - name: Check for analyzable source code
+        id: check-sources
+        run: |
+          SOURCE_FILES=$(find . -type f \( -name "*.c" -o -name "*.cc" -o -name "*.cpp" -o -name "*.cs" -o -name "*.go" -o -name "*.java" -o -name "*.kt" -o -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.rb" -o -name "*.php" -o -name "*.swift" \) ! -path "./.git/*" | wc -l)
+          if [ "$SOURCE_FILES" -eq 0 ]; then
+            echo "No analyzable source code found, skipping CodeQL analysis"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Found $SOURCE_FILES source files, proceeding with CodeQL analysis"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Initialize CodeQL
+        if: steps.check-sources.outputs.skip != 'true'
+        uses: github/codeql-action/init@29b1f65c1f735799893313399435a59f54045865 # v3
+        with:
+          languages: auto
+
+      - name: Autobuild
+        if: steps.check-sources.outputs.skip != 'true'
+        uses: github/codeql-action/autobuild@29b1f65c1f735799893313399435a59f54045865 # v3
+
+      - name: Perform CodeQL Analysis
+        if: steps.check-sources.outputs.skip != 'true'
+        uses: github/codeql-action/analyze@29b1f65c1f735799893313399435a59f54045865 # v3
+
+      - name: Skip CodeQL - No source code
+        if: steps.check-sources.outputs.skip == 'true'
+        run: echo "::notice::CodeQL analysis skipped - no analyzable source code in this repository"
