@@ -20,22 +20,30 @@ jobs:
     permissions:
       security-events: write
       contents: read
-    container:
-      image: ghcr.io/hyperpolymath/oikos:v2.0.0
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
 
+      # Run the published CLI container explicitly (the image sets a
+      # non-root USER, which GitHub `container:` jobs do not tolerate).
+      # Failures propagate — no `|| echo` masking; advisor-mode reporting
+      # comes from .oikos.yml (enforcement: warning), not from swallowing
+      # exit codes. The former ghcr.io/hyperpolymath/oikos:v2.0.0 pin
+      # referenced a tag that never existed on the package.
       - name: Run OikosBot analysis
         run: |
-          oikosbot report /github/workspace \
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/work" -w /work \
+            ghcr.io/hyperpolymath/oikos:latest \
+            report /work \
             --format sarif \
-            --output /github/workspace/results.sarif \
-            --config /github/workspace/.oikos.yml \
-            --eco-threshold 50 || echo "OikosBot analysis completed"
+            --output /work/results.sarif \
+            --config /work/.oikos.yml \
+            --eco-threshold 50
 
       - name: Upload SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@39a73d65469e0144129775918a2032174234c279 # v3
+        uses: github/codeql-action/upload-sarif@4187e74d05793876e9989daffde9c3e66b4acd07 # v3
         with:
-          sarif_file: /github/workspace/results.sarif
+          sarif_file: results.sarif
           category: oikosbot
