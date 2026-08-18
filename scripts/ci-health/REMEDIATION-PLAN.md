@@ -6,7 +6,9 @@ This document describes the **comprehensive, foundational, upstream, permanent**
 
 ## Problem Analysis
 
-Issue #14 reported three failure classes across 28 repos in the metadatastician estate:
+Issue #14 reported three failure classes across the 28 repositories that
+existed in its 2026-07-31 scan. The 2026-08-18 closure audit enumerated 34
+non-archived, non-fork source repositories.
 
 ### A-BILLING (Critical - 3 repos)
 - **Affected**: canonical-ums, chronicles-of-slavia, sim-insolvency
@@ -15,7 +17,8 @@ Issue #14 reported three failure classes across 28 repos in the metadatastician 
 
 ### B-ALLOWLIST / B-STARTUPFAIL (High - 26+ repos)
 - **Affected**: All repos using `allowed_actions: selected` with incomplete allow-list
-- **Root cause**: Missing 119/120 curated action patterns (particularly third-party actions like 8398a7/action-slack@*)
+- **Root cause**: The organization-enforced allow-list contained 20 broad
+  owner patterns but missed 117 of the 118 unique canonical patterns
 - **Symptom**: startup_failure runs due to blocked actions
 - **Root cause analysis**: Repos consume reusable workflows from hyperpolymath/standards, requiring `hyperpolymath/*` pattern, but are missing the complete curated superset of 119 third-party actions
 
@@ -26,7 +29,13 @@ Issue #14 reported three failure classes across 28 repos in the metadatastician 
 
 ## Root Cause
 
-The metadatastician estate lacked a **systemic CI-health monitoring and auto-remediation infrastructure**. While individual repos could be fixed manually, there was no:
+The first implementation also targeted repository settings even though the
+allow-list is enforced by the organization. GitHub correctly rejected those
+writes with HTTP 409. Its detector suppressed API errors, counted an arbitrary
+historical page of startup failures, and therefore could not prove convergence.
+
+The metadatastician estate needed systemic CI-health monitoring and
+auto-remediation with the correct authority boundary:
 
 1. **Detection system** to identify failing repos
 2. **Auto-remediation** to fix B-ALLOWLIST and D-BURN classes
@@ -62,8 +71,10 @@ Created `.github/workflows/ci-health-sweep.yml`:
 
 #### Pattern Strategy
 - **Primary pattern**: `hyperpolymath/*` (repos consume reusable workflows from hyperpolymath/standards)
-- **Curated superset**: 119 third-party actions from action-superset.txt
-- **Total patterns**: 120 (hyperpolymath/* + 119 third-party @*)
+- **Canonical source**: 119 lines in `action-superset.txt`, normalized and
+  deduplicated before use
+- **Effective set**: 118 unique patterns, applied once at the organization
+  policy endpoint and inherited by all repositories
 
 This differs from hypatia's estate (which uses `hyperpolymath/*` for its own repos) but matches the actual usage pattern in metadatastician.
 
@@ -78,9 +89,13 @@ This differs from hypatia's estate (which uses `hyperpolymath/*` for its own rep
 - Corrected pattern strategy to use `hyperpolymath/*` (matching actual repo usage)
 
 ### 2. Verification ✅
-- Tested detect.sh on paint-type: correctly identifies B-ALLOWLIST (missing 119/120) and B-STARTUPFAIL (28 runs)
-- Tested detect.sh on canonical-ums: correctly identifies B-ALLOWLIST (missing 119/120) and B-STARTUPFAIL (15 runs)
-- Verified D-BURN is resolved for paint-type (workflows already have guardrails)
+- Enumerated all 34 in-scope repositories; no capped search was used
+- Verified the organization Actions policy shape directly
+- Verified `paint-type` D-BURN is resolved and found three successor findings
+  in `_pathroot`
+- Changed startup health to the latest run of every enumerated active workflow,
+  rather than an arbitrary page of historical runs
+- Made API/shape failures fatal `E-INSTRUMENT` results
 
 ### 3. Auto-Remediation Ready ✅
 The system is now ready to auto-remediate. To execute:
@@ -90,7 +105,7 @@ The system is now ready to auto-remediate. To execute:
 cd /home/hyperpolymath/developer/meta-repos/metadatastician-governance
 OWNER=metadatastician DRY_RUN=true ./scripts/ci-health/sweep.sh
 
-# Live remediation (requires GH_TOKEN with repo admin scope)
+# Live remediation (requires GH_TOKEN with repo + workflow + admin:org)
 OWNER=metadatastician DRY_RUN=false GH_TOKEN=$PAT ./scripts/ci-health/sweep.sh
 ```
 
@@ -125,11 +140,13 @@ The action-superset.txt is maintained at the estate level. When new third-party 
 
 ## Next Steps
 
-1. **Owner action required**: Fix A-BILLING for 3 repos in GitHub Settings -> Billing & plans
-2. **Deploy workflow**: Push the CI-health infrastructure to metadatastician-governance
-3. **Create PAT**: Create `METADATASTICIAN_DISPATCH_PAT` secret with `repo` + `workflow` scope
-4. **First sweep**: Run manual workflow_dispatch with dry_run=false to fix all repos
-5. **Monitor**: Daily scheduled runs will maintain estate health
+1. Keep `METADATASTICIAN_DISPATCH_PAT` authorized for `repo`, `workflow`, and
+   `admin:org`; repo-only credentials cannot update inherited policy.
+2. Run manual dry-runs for summary-only verification.
+3. Run a live sweep after policy/source changes; a complete finding-free sweep
+   closes the rolling tracking issue.
+4. Monitor the daily scheduled run. Any incomplete scan fails closed and leaves
+   the prior issue state untouched.
 
 ## Files Modified/Created
 

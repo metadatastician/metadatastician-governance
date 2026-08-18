@@ -40,7 +40,8 @@ zero-missing and this stops re-firing (idempotent).
 `sha_pinning_required`.
 
 | `B-STARTUPFAIL`
-| Observed `startup_failure` runs.
+| An active workflow whose latest run is `startup_failure`. Historical failures
+do not keep the rolling issue open after a successful replacement run.
 | **Report** — the API never exposes the reason; the **web-UI red banner does**
 (it names the blocked action). Usually a missing allow-list pattern.
 
@@ -74,13 +75,22 @@ zero-missing and this stops re-firing (idempotent).
 
 == Operating notes / off-switch
 
-* Needs `secrets.METADATASTICIAN_DISPATCH_PAT` (classic `repo` + `workflow` scope — repo
-  admin for the allow-list PUT, PR create, issue upsert).
+* Needs `secrets.METADATASTICIAN_DISPATCH_PAT` with classic `repo`, `workflow`,
+  and `admin:org` scopes. The allow-list is centrally enforced, so its PUT must
+  target the organization; repository-level PUTs return HTTP 409.
 * Scheduled runs remediate **live**; manual `workflow_dispatch` defaults to
-  **dry-run**. To pause auto-remediation, set the schedule run to dry-run or
-  disable the workflow.
+  **dry-run**. Dry-runs write only the job summary and do not change the rolling
+  issue. To pause auto-remediation, set the schedule run to dry-run or disable
+  the workflow.
 * Sweep gotchas baked in: drive off the API owner (never local dir names — some
   estate clones' `origin` ≠ dir name, e.g. `mirror-007` → `metadatastician/007`);
   PR-create always passes an explicit `base`; forks/archived/deleted remotes are
   skipped, not failed.
-* New shared third-party action? Add it to `action-superset.txt`.
+* New shared third-party action? Add it to `action-superset.txt`. Entries are
+normalized and deduplicated before comparison and update.
+* Organization allow-list health is detected/remediated once at its authority
+scope. Repository scans cover runs, billing annotations, and workflow triggers.
+* API failures are `E-INSTRUMENT` findings and abort a sweep. A partial scan is
+never reported as a healthy estate.
+* A complete finding-free sweep closes the rolling issue; a later real finding
+opens a new report.
