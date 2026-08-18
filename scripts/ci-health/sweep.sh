@@ -36,8 +36,16 @@ if ! OWNER="$O" "$HERE/detect.sh" @organization >>"$findings"; then
   printf '%s\n' @organization >>"$errors"
 fi
 
+# Zero-job startup failures cannot be retried through GitHub's API. Compare
+# latest workflow runs only after the most recent organization-policy update;
+# otherwise a rare workflow's pre-fix record would remain "current" forever.
+if ! policy_epoch=$(gh variable get CI_HEALTH_POLICY_EPOCH --org "$O"); then
+  policy_epoch=$(date -u -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+  echo "CI_HEALTH_POLICY_EPOCH unavailable; using 25-hour observation horizon ($policy_epoch)" >&2
+fi
+
 for r in "${REPOS[@]}"; do
-  if ! OWNER="$O" CHECK_ALLOWLIST=false "$HERE/detect.sh" "$r" >>"$findings"; then
+  if ! OWNER="$O" CHECK_ALLOWLIST=false STARTUP_FAILURE_SINCE="$policy_epoch" "$HERE/detect.sh" "$r" >>"$findings"; then
     printf '%s\n' "$r" >>"$errors"
   fi
 done

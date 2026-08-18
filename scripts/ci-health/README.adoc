@@ -41,7 +41,9 @@ zero-missing and this stops re-firing (idempotent).
 
 | `B-STARTUPFAIL`
 | An active workflow whose latest run is `startup_failure`. Historical failures
-do not keep the rolling issue open after a successful replacement run.
+created before `CI_HEALTH_POLICY_EPOCH` do not keep the rolling issue open:
+GitHub returns HTTP 403 when asked to rerun a zero-job startup failure, so rare
+event-driven workflows may have no replacement run for months.
 | **Report** — the API never exposes the reason; the **web-UI red banner does**
 (it names the blocked action). Usually a missing allow-list pattern.
 
@@ -90,6 +92,9 @@ do not keep the rolling issue open after a successful replacement run.
 normalized and deduplicated before comparison and update.
 * Organization allow-list health is detected/remediated once at its authority
 scope. Repository scans cover runs, billing annotations, and workflow triggers.
+  A successful organization allow-list update records `CI_HEALTH_POLICY_EPOCH`
+  as an organization Actions variable. If it is unavailable, detection uses an
+  explicit 25-hour fallback horizon (longer than the daily schedule interval).
 * API failures are `E-INSTRUMENT` findings and abort a sweep. A partial scan is
 never reported as a healthy estate.
 * A complete finding-free sweep closes the rolling issue; a later real finding

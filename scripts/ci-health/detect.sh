@@ -21,6 +21,7 @@ set -euo pipefail
 O="${OWNER:-metadatastician}"
 R="$1"
 HERE="$(cd "$(dirname "$0")" && pwd)" # for action-superset.txt (allow-list coverage)
+STARTUP_FAILURE_SINCE="${STARTUP_FAILURE_SINCE:-$(date -u -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)}"
 emit() { printf '%s\t%s\t%s\t%s\n' "$R" "$1" "$2" "$3"; }
 die_api() {
   emit E-INSTRUMENT CRITICAL "$1"
@@ -79,12 +80,14 @@ billing=false
 sf=0
 while IFS= read -r workflow_id; do
   [ -z "$workflow_id" ] && continue
-  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.conclusion // "")] | @tsv'); then
+  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.conclusion // ""), (.created_at // "")] | @tsv'); then
     die_api "latest-run query failed for workflow $workflow_id; run health is unknown"
   fi
   [ -z "$latest" ] && continue
-  IFS=$'\t' read -r run_id conclusion <<<"$latest"
-  [ "$conclusion" = startup_failure ] && sf=$((sf + 1))
+  IFS=$'\t' read -r run_id conclusion created_at <<<"$latest"
+  if [ "$conclusion" = startup_failure ] && [[ "$created_at" > "$STARTUP_FAILURE_SINCE" ]]; then
+    sf=$((sf + 1))
+  fi
   [ "$conclusion" = failure ] || continue
   if ! job_ids=$(gh api --paginate "repos/$O/$R/actions/runs/$run_id/jobs?per_page=100" --jq '.jobs[].id'); then
     die_api "job enumeration failed for run $run_id; billing health is unknown"
@@ -116,7 +119,7 @@ fi
 [ "${CHECK_ALLOWLIST:-true}" = true ] && check_allowlist "repos/$O/$R"
 
 # --- B: active startup failures (symptom).
-[ "$sf" -gt 0 ] && emit B-STARTUPFAIL HIGH "$sf active workflow(s) have startup_failure as their latest run → inspect the run banner and policy/pinning inputs"
+[ "$sf" -gt 0 ] && emit B-STARTUPFAIL HIGH "$sf active workflow(s) have startup_failure as their latest run after policy epoch $STARTUP_FAILURE_SINCE → inspect the run banner and policy/pinning inputs"
 
 # --- D: burn anti-pattern (bare [push, pull_request] double-trigger), via API
 if ! paths=$(gh api "repos/$O/$R/git/trees/$default_branch?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$"))) | .path'); then

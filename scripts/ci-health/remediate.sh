@@ -67,6 +67,10 @@ B-ALLOWLIST)
   if [ "$R" = @organization ]; then scope="orgs/$O"; else scope="repos/$O/$R"; fi
   printf '%s' "$body" | gh api -X PUT "$scope/actions/permissions/selected-actions" --input - >/dev/null
   n=$(gh api "$scope/actions/permissions/selected-actions" --jq '.patterns_allowed|length')
+  if [ "$R" = @organization ]; then
+    epoch=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    gh variable set CI_HEALTH_POLICY_EPOCH --org "$O" --body "$epoch" --visibility all
+  fi
   echo "FIXED $R/B-ALLOWLIST -> $n patterns (sha-pinning unchanged)"
   ;;
 D-BURN)
