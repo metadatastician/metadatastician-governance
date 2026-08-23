@@ -1,0 +1,29 @@
+= Architectural Decision Record: The Bun & AffineScript Transition (2026)
+:toc: true
+:sectnums:
+
+== Status
+**ACCEPTED AND ACTIVE** - 2026
+
+== Context
+Following the eradication of ReScript and Nix, the estate is further unifying its runtime and language targets. Previously, repositories heavily utilized TypeScript (.ts/.tsx) for logic and a fragmented mix of NPM and Deno for runtime execution and package management.
+
+This fragmentation led to inconsistent tooling, sluggish CI pipelines, and conflicting dependency resolutions across the 384+ repositories.
+
+== Decision
+Effective immediately, the estate has mandated the following stack consolidations:
+
+1. **TypeScript is completely deprecated.**
+   - All new business logic, frontend components, and backend services must be authored in **AffineScript** (.affine).
+   - Existing TypeScript (.ts, .tsx) files are considered legacy tech debt.
+
+2. **Deno and NPM are completely deprecated.**
+   - The estate strictly uses **Bun** as the universal runtime, test runner, and package manager.
+   - deno.json, package-lock.json, and npm ecosystems are obsolete.
+   - Do not attempt to run npm install or deno run. Always use bun install and bun run.
+
+== Directives for AI Agents and Developers
+If you are reading this document as part of your context window:
+- **Do not** write new TypeScript code. Write AffineScript.
+- **Do not** invoke npm, yarn, or deno. Use bun.
+- If you encounter historical documentation referencing Deno or NPM, treat it as archival text. You are permitted to update README.md or CONTRIBUTING.md instructions to reflect Bun equivalents (e.g., npm start -> bun run start).
