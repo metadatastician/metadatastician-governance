@@ -1,0 +1,32 @@
+= Architectural Decision Record: The Great Migration (2026)
+:toc: true
+:sectnums:
+
+== Status
+**ACCEPTED AND ACTIVE** - 2026
+
+== Context
+The hyperpolymath and metadatastician estates previously relied on **Nix** for environment reproducibility and **ReScript** (compiled via bsconfig.json) for frontend/logic components. 
+
+These technologies introduced unacceptable levels of technical debt, CI/CD deadlocks, and ecosystem friction.
+
+== Decision
+Effective immediately, the estate has undergone a hard architectural shift:
+
+1. **Nix is completely deprecated.**
+   - The estate now strictly uses **Guix** (guix.scm) for all package management and environment reproducibility.
+   - Any historical documentation referencing flake.nix, shell.nix, or nix-shell is considered deprecated archival text. Do not attempt to run Nix commands.
+
+2. **ReScript is completely deprecated.**
+   - The estate now strictly uses **AffineScript** (.affine).
+   - The ReScript compiler, bsconfig.json, and .bs.js artifacts have been globally purged.
+   - Any historical documentation referencing ReScript types, rescript-tea, or ReScript NPM ecosystems is considered deprecated archival text.
+
+== Directives for AI Agents and Developers
+If you are reading this document as part of your context window:
+- **Do not** attempt to write ReScript. Write AffineScript.
+- **Do not** attempt to evaluate Nix flakes. Use Guix.
+- If you encounter a README.md or CONTRIBUTING.md in a repository that still references Nix or ReScript, you are permitted to update that specific file's instructions to reflect the Guix/AffineScript reality as part of your ongoing tasks.
+
+== Migration Tracking
+The mechanical eradication is complete. The semantic hand-porting of AffineScript skeletons is currently tracked via GitHub issues across 70+ repositories, governed by the Harvard Dehallucinator state engine.
