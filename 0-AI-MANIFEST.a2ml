@@ -8,7 +8,7 @@ name = "metadatastician-governance"
 purpose = "Adopting governance profile for The Metadatastician estate"
 
 [policy]
-read-first = ["README.adoc", "AGENTS.md", "ESTATE-PROFILE.adoc", "AUTHORITY-MAP.adoc", "ADOPTION-AND-DEVIATIONS.adoc"]
+read-first = ["README.adoc", "AGENTS.md", "docs/governance/ESTATE-PROFILE.adoc", "docs/governance/AUTHORITY-MAP.adoc", "docs/governance/ADOPTION-AND-DEVIATIONS.adoc"]
 rules = [
   "Do not silently redefine or copy upstream normative standards.",
   "Do not treat proposals as authorised policy or validation as proof.",

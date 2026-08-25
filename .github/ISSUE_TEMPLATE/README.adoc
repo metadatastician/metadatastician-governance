@@ -124,7 +124,7 @@ When creating or modifying templates:
 
 == Related Files
 
-* link:../0.1-AI-MANIFEST.a2ml[Parent AI Manifest]
-* link:../README.adoc[Parent Directory README]
+* link:../../0-AI-MANIFEST.a2ml[Parent AI Manifest]
+* link:../../README.adoc[Parent Directory README]
 * link:../../.machine_readable/[Machine Readable Metadata]
 * link:../DISCUSSION_TEMPLATE/[Discussion Templates]
