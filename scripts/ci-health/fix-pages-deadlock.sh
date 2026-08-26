@@ -78,4 +78,7 @@ done
 
 echo
 echo "rulesets with the rule: $changed   rulesets already clean: $skipped"
-[ "$DRY_RUN" = "true" ] && echo "dry run — re-run with 'false' as the second argument to apply."
+if [ "$DRY_RUN" = "true" ]; then
+  echo "dry run — re-run with 'false' as the second argument to apply."
+fi
+exit 0
