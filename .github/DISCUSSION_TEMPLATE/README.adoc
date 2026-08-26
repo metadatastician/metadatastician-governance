@@ -110,7 +110,7 @@ When creating or modifying discussion templates:
 
 == Related Files
 
-* link:../0.1-AI-MANIFEST.a2ml[Parent AI Manifest]
-* link:../README.adoc[Parent Directory README]
+* link:../../0-AI-MANIFEST.a2ml[Parent AI Manifest]
+* link:../../README.adoc[Parent Directory README]
 * link:../../.machine_readable/[Machine Readable Metadata]
 * link:../ISSUE_TEMPLATE/[Issue Templates]

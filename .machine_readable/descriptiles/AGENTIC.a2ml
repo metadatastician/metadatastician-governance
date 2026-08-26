@@ -6,4 +6,4 @@ version = "0.1.0"
 authority = "bounded"
 may-authorise-policy = false
 human-review-required = ["material classification", "exception", "deviation", "risk acceptance", "policy adoption"]
-challenge-route = "CHANGE-PROCEDURE.adoc"
+challenge-route = "docs/governance/CHANGE-PROCEDURE.adoc"

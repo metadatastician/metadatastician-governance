@@ -271,7 +271,7 @@ We believe in recognising security researchers who help us improve.
 
 ### Hall of Fame
 
-Researchers who report valid vulnerabilities will be acknowledged in our [Security Acknowledgments](SECURITY-ACKNOWLEDGMENTS.md) (unless they prefer anonymity).
+Researchers who report valid vulnerabilities will be acknowledged in our Security Acknowledgments (not yet published) (unless they prefer anonymity).
 
 Recognition includes:
 
@@ -305,7 +305,7 @@ To stay informed about security updates:
 
 - **Watch this repository**: Click "Watch" → "Custom" → Select "Security alerts"
 - **GitHub Security Advisories**: Published at [Security Advisories](https://github.com/metadatastician/metadatastician-governance/security/advisories)
-- **Release notes**: Security fixes noted in [CHANGELOG](CHANGELOG.md)
+- **Release notes**: Security fixes noted in the release notes (this repository publishes no CHANGELOG)
 
 ### Update Policy
 
@@ -354,8 +354,7 @@ When using Metadatastician Governance, we recommend:
 
 - [Our PGP Public Key](https://github.com/hyperpolymath.gpg)
 - [Security Advisories](https://github.com/metadatastician/metadatastician-governance/security/advisories)
-- [Changelog](CHANGELOG.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+- [Contributing Guidelines](.github/CONTRIBUTING.adoc)
 - [CVE Database](https://cve.mitre.org/)
 - [CVSS Calculator](https://www.first.org/cvss/calculator/3.1)
 
@@ -367,7 +366,7 @@ When using Metadatastician Governance, we recommend:
 |---------|---------|
 | **Security issues** | [Report via GitHub](https://github.com/metadatastician/metadatastician-governance/security/advisories/new) or j.d.a.jewell@open.ac.uk |
 | **General questions** | [GitHub Discussions](https://github.com/metadatastician/metadatastician-governance/discussions) |
-| **Other enquiries** | See [README](README.md) for contact information |
+| **Other enquiries** | See [README](README.adoc) for contact information |
 
 ---
 

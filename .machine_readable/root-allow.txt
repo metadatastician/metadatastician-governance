@@ -1,0 +1,38 @@
+# root-allow.txt — canonical allowlist for this repository's root.
+#
+# scripts/check-root-shape.sh fails when the root contains an entry that is
+# not listed here. Derived from hyperpolymath/rsr-template-repo's allowlist,
+# reduced to what a governance repository actually ships (no src/, no build
+# system, no ABI seam) and extended with three justified additions, marked.
+#
+# Governance body documents live in docs/governance/ and architecture decision
+# records in docs/decisions/ — both permitted by the RSR contract, which
+# accepts governance at the root OR under docs/governance/.
+
+README.adoc                # entry point; links Start here, Architecture decisions, Upstream pin
+ARCHITECTURE.md            # repo layout + design rationale; RSR ships this at root
+GOVERNANCE.md              # GitHub renders .md natively; RSR allows it at root
+MAINTAINERS                # plain-text roster
+SECURITY.md                # accepted at root OR .github/; GitHub's Security tab reads it here
+LICENSE
+LICENSES/                  # REUSE licence texts for the dual-licence model
+0-AI-MANIFEST.a2ml         # thin pointer into .machine_readable/
+mise.toml                  # pinned toolchains
+.editorconfig
+.gitattributes
+.gitignore
+.git/
+.github/                   # community health (CODE_OF_CONDUCT.{md,adoc}, CONTRIBUTING.adoc), workflows, templates
+.machine_readable/         # descriptiles, binding templates, this allowlist
+docs/                      # governance/ (body documents), decisions/ (ADRs)
+scripts/                   # ci-health/ tooling, check-root-shape.sh
+
+# --- Additions beyond the RSR list, specific to this repository -------------
+AGENTS.md                  # agent orientation file. RSR allowlists the equivalent
+                           # CLAUDE.md; this estate uses the AGENTS.md convention.
+                           # Must stay at root: agents read it from the repo root.
+templates/                 # project binding templates. This is the repository's
+                           # product - individual projects bind through them - so
+                           # it is not documentation and does not belong in docs/.
+.oikos.yml                 # oikosbot configuration; the tool resolves it from the
+                           # repository root, exactly like .hypatia-ignore in RSR.
