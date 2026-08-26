@@ -30,7 +30,7 @@
 #   ./fix-pages-deadlock.sh <owner> [dry_run:true|false]     # default: true
 #
 # Requires: gh with admin rights on the org, python3.
-set -uo pipefail
+set -euo pipefail
 
 OWNER="${1:?usage: fix-pages-deadlock.sh <owner> [dry_run]}"
 DRY_RUN="${2:-true}"
