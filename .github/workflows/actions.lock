@@ -5,6 +5,8 @@ version: 'v0.0.2'
 workflows:
     '.github/workflows/ci-health-sweep.yml':
         - 'actions/checkout@v7.0.1'
+    '.github/workflows/labels.yml': []
+    '.github/workflows/label-triage.yml': []
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
