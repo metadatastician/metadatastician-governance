@@ -7,6 +7,10 @@ workflows:
         - 'actions/checkout@v7.0.1'
     '.github/workflows/labels.yml': []
     '.github/workflows/label-triage.yml': []
+    '.github/workflows/zz-probe-lockmatch.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+    '.github/workflows/zz-probe-lockmismatch.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'

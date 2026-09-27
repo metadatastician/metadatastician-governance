@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MPL-2.0
+# TEMPORARY diagnostic probe (session arena/01a0e520): establishes the exact
+# actions.lock enforcement rule so the CI-health remediator can be written
+# against measured behaviour instead of guesswork. Deleted before the PR.
+name: zz-probe-lockmatch
+on: push
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: echo "probe lockmatch started (checkout resolved)"
