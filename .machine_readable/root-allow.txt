@@ -3,7 +3,7 @@
 # scripts/check-root-shape.sh fails when the root contains an entry that is
 # not listed here. Derived from hyperpolymath/rsr-template-repo's allowlist,
 # reduced to what a governance repository actually ships (no src/, no build
-# system, no ABI seam) and extended with three justified additions, marked.
+# system, no ABI seam) and extended with five justified additions, marked.
 #
 # Governance body documents live in docs/governance/ and architecture decision
 # records in docs/decisions/ — both permitted by the RSR contract, which
@@ -36,3 +36,15 @@ templates/                 # project binding templates. This is the repository's
                            # it is not documentation and does not belong in docs/.
 .oikos.yml                 # oikosbot configuration; the tool resolves it from the
                            # repository root, exactly like .hypatia-ignore in RSR.
+TEST-NEEDS.adoc            # this repository's test-category declaration, required by
+                           # the Testing & Benchmarking Taxonomy's Scope section
+                           # ("a component must declare which categories apply and
+                           # demonstrate evidence for each"). The estate convention puts
+                           # it at the root (cf. proven-tests-and-benches/TEST-NEEDS.adoc),
+                           # and it is a declaration of this repository, not governance
+                           # body text, so it does not belong under docs/governance/.
+tests/                     # shell test discovery is canonical at tests/*.sh
+                           # (hyperpolymath/standards scripts/run-shell-test-suite.sh
+                           # searches tests/ and scripts/tests/). Moving these under
+                           # scripts/tests/ would work for the runner but would hide
+                           # them from the convention every other repository follows.

@@ -59,6 +59,14 @@ fi
 while IFS=$'\t' read -r repo cls _sev _detail; do
   case "$cls" in
   B-ALLOWLIST) OWNER="$O" "$HERE/remediate.sh" "$repo" "$cls" "$DRY" || true ;;
+  B-LOCKFILE | B-BADPIN)
+    # Diagnosed, not auto-applied: the cure is to regenerate actions.lock (or
+    # re-point a dead pin) in the same commit as the ref change. Doing that
+    # blind from a sweep would guess which side is stale - the estate has been
+    # burned by that already (hyperpolymath/standards#981) - so the finding
+    # carries the exact refs and the file stays with the repo's owners.
+    echo "REPORT $repo/$cls: see the finding text (regenerate actions.lock with gh actions-lock; review the diff)"
+    ;;
   D-BURN)
     if [ "$burned" -lt "$MAXPR" ]; then
       out=$(OWNER="$O" "$HERE/remediate.sh" "$repo" "$cls" "$DRY" || true)
@@ -78,8 +86,8 @@ done < <(sort -u "$findings")
   grep -P '\tA-BILLING\t' "$findings" | awk -F'\t' '{print "- **"$1"** — "$4}' || true
   grep -qP '\tA-BILLING\t' "$findings" || echo "- _none_"
   echo ""
-  echo "### 🟠 B — allow-list / startup_failure"
-  grep -P '\tB-(ALLOWLIST|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
+  echo "### 🟠 B — allow-list / lockfile drift / startup_failure"
+  grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
   grep -qP '\tB-' "$findings" || echo "- _none_"
   echo ""
   echo "### 🟡 D-BURN — push/PR double-trigger"

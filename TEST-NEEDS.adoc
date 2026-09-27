@@ -1,0 +1,211 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= TEST-NEEDS: metadatastician-governance
+
+*Standards:*
+https://github.com/hyperpolymath/standards/blob/main/3-practice/testing-and-benchmarking/TESTING-TAXONOMY.adoc[Testing
+& Benchmarking Taxonomy] (categories and aspects),
+https://github.com/hyperpolymath/standards/blob/main/3-practice/TEST-NEEDS.adoc[TEST-NEEDS]
+(declaration format), and
+https://github.com/hyperpolymath/proven-tests-and-benches[`proven-tests-and-benches`]
+(provenance order and `docs/TEST-DOCTRINE.adoc`).
+
+*Last measured:* 2026-09-28 by `./scripts/run-shell-test-suite.sh`, exit 0 —
+4 test files, 53 checks.
+
+== What kind of component this is, and why that shapes the declaration
+
+This repository ships no compiled program. It is shell gates, workflow YAML,
+A2ML descriptors and AsciiDoc governance text. Most of the taxonomy's
+categories are written for components with a build, a runtime and a wire
+protocol; declaring them "present" here would be exactly the overclaiming that
+`proven-tests-and-benches/TEST-NEEDS.adoc` warns is more expensive here than
+anywhere else, because what this repository records is read as evidence in
+other repositories.
+
+So each category below is *REAL*, *THIN*, or *N/A with justification*, using the
+three states that file defines and never collapsing the second into the first:
+
+* *REAL* — a test that would fail if the property it names stopped holding.
+* *THIN* — a genuine assertion, far weaker than the taxonomy's definition of
+  that category. Not a template for other repositories.
+* *N/A* — not implemented, with the justification §Scope requires.
+
+== Category-by-category
+
+[cols="1,1,3",options="header"]
+|===
+| Category | State | Evidence or justification
+
+| 1. Unit
+| REAL
+| `tests/yaml-reader-test.sh` asserts `yaml_uses_in` behaviour by name: a
+  job-level `uses:` is seen, a commented-out one is not, a sub-path ref
+  normalises to `OWNER/REPO@REF`, a local `./…` ref is dropped.
+  `tests/lock-pins-test.sh` asserts the determinate/indeterminate split per
+  HTTP answer, and each exit code.
+
+| 2. Point-to-point
+| N/A
+| There is no pair of processes or services exchanging messages. The nearest
+  boundary is gate ↔ GitHub API, and it is covered as a contract
+  (see category 12) rather than as P2P.
+
+| 3. End-to-end
+| THIN
+| `scripts/run-shell-test-suite.sh` exercises every gate end to end on a
+  fixture repository, and the `CI` workflow runs the same suite against the
+  real repository. There is no deployed system for a true E2E test to span.
+
+| 4. Build
+| N/A
+| Nothing is built. There is no compiler, no artefact and no build graph, so a
+  build test would have nothing to assert.
+
+| 5. Execution / runtime
+| REAL
+| Every gate is executed, not merely parsed. The exit contract is asserted per
+  case, and the ambiguity that makes this category worth having — "0" versus
+  "never ran" — is the one this suite spends most of its checks on.
+
+| 6. Reflexive
+| REAL
+| The gates read this repository's own artefacts: `scripts/check-lock-sync.sh`
+  and `scripts/check-lock-pins.sh` are run against `.github/workflows/` by the
+  `lock-sync-gate` workflow, and `scripts/kyaml-census.sh` censuses this
+  repository's own YAML. A gate that only ever ran on fixtures is not evidence.
+
+| 7. Lifecycle
+| N/A
+| No component here has start/stop/upgrade semantics.
+
+| 8. Smoke
+| REAL
+| `scripts/check-workflows-parse.sh` sniffs the three shapes that kill a run
+  before any job exists, and the `CI` workflow's environment step prints the
+  tool versions so a green run cannot mean "the runner did nothing".
+
+| 9. Property-based
+| THIN
+| The fixtures are hand-written examples, not generated universes. No property
+  generator exists. The honest claim: several examples per declared defect
+  class, no quantified coverage of the input space.
+
+| 10. Mutation
+| THIN
+| Every gate ships a firing fixture that is a member of the class it detects,
+  and the suite requires it to fire — so a gate that stops detecting its own
+  class is red. These are input mutants, not code mutants, and there is no
+  mutation-score tool. Do not read this as a mutation-score claim.
+
+| 11. Fuzz
+| N/A
+| No fuzzer is wired up. The obvious target — the YAML reader — is currently
+  covered by delegating parsing to `yq`/`ruby`/PyYAML rather than to code of
+  ours, so the fuzzable surface is third-party.
+
+| 12. Contract / invariant
+| REAL
+| Three outcomes are enforced per gate — `0` ran and agreed, `1` ran and found
+  whatever it looks for, `2` NO CHECK WAS PERFORMED — and both
+  `tests/lock-sync-test.sh` and `tests/lock-pins-test.sh` assert that `2` is
+  reachable exactly when the instrument is missing or the document will not
+  load, and is never reported as a pass.
+
+| 13. Regression
+| REAL
+| Each firing fixture is a committed specimen of a real incident: the
+  job-level reusable `uses:` the estate's lockfile extractor went blind on; the
+  tag-versus-SHA ref disagreement that refused this repository's own sweep runs
+  (35957324128, 36096095736, 36218967182, 36295476367); the unauthorised
+  OpenSSF Best Practices badge in `scripts/tests/test_readme_badges.py`.
+
+| 14. Chaos / resilience
+| N/A
+| No long-running service to perturb.
+
+| 15. Compatibility
+| THIN
+| One real instance is covered: `tests/lock-sync-test.sh` includes a flow-style
+  YAML fixture, which is what caught this repository's first lock checker being
+  a line reader. Portability across `yq` implementations is handled by
+  detection rather than by tests, and `gawk`-only constructs have already
+  caused one silent defect here — so this is THIN, and narrowing it is
+  worthwhile work rather than a claim to defend.
+
+| 16. Proof regression
+| N/A
+| This repository contains no proofs. The proof obligations it carries — the
+  KYAML comment-preservation proof, rule Y-2's round-trip proof — belong to
+  `hyperpolymath/standards` (issues #1021, #1022), and this repository's job is
+  to consume their result, not to host them.
+
+| 17. Type-safe
+| N/A
+| No type-safe language is used for testable code.
+
+| 18. Coupling / drift-freedom
+| REAL
+| The strongest coverage here, and the category this repository exists for.
+  `actions.lock` and the workflow YAML are two representations of one fact, and
+  `scripts/check-lock-sync.sh` compares them in both directions, per workflow
+  path, through a real parser. `scripts/check-lock-pins.sh` then re-asks GitHub
+  whether every recorded pin still resolves.
+|===
+
+== Benchmarks
+
+N/A, with justification. This repository makes no performance claim, and it has
+no measured artefact whose regression would be meaningful. The only timing
+concern is that the gates stay cheap enough to run on every pull request —
+which is a CI budget, not a benchmark: a regression there shows up as a slow
+check, not as a wrong result, and there is nothing to baseline.
+
+== Aspects
+
+The 14 aspects (Part II of the taxonomy) are assessed where they apply rather
+than claimed wholesale:
+
+* *Security* — applicable and partly covered. The gates that matter
+  (`check-lock-pins.sh`, `check-lock-sync.sh`) are about supply-chain identity
+  and fail closed on an unavailable instrument. `secret-scanner.yml` runs the
+  estate scanner. Not covered: any assertion that the *scanner itself* is
+  running rather than silently absent.
+* *Error handling* — applicable and covered: three-outcome exit contracts and
+  an explicit no-check message.
+* *Simplicity, observability, documentation* — applicable; documentation is
+  this file, `docs/governance/CI-CD-COVERAGE.adoc` and the gate headers.
+* *Accessibility, i18n, performance, concurrency, data integrity, privacy,
+  compliance* — N/A here, with the exception that *compliance* is the whole
+  subject matter of this repository and is asserted by the workflows it
+  dispatches, not by tests of this repository.
+
+== Provenance: what was drawn from `proven-tests-and-benches`, and what was not
+
+The taxonomy's §Provenance puts the Idris2 suite at
+`hyperpolymath/proven-tests-and-benches` *first*, ahead of writing anything new.
+That suite tests Idris2 code; this repository has none, so its corpus is N/A
+and no test here is a copy of it. What is adopted is its *doctrine*, which is
+binding on tests copied out of it and is followed here:
+
+* harness and payload are separate, the harness must never fire on clean input,
+  the payload must always fire on a member of its declared class
+  (`docs/TEST-DOCTRINE.adoc`);
+* every test carries a *silence fixture* and a *firing fixture*, and a test
+  missing either is inadmissible;
+* a crash is `2` — NO CHECK WAS PERFORMED — and never conflated with success.
+
+If a future test here is written by adapting one of theirs, its `TEST-NEEDS`
+entry must name the source and this section must be updated.
+
+== Grade, honestly
+
+Self-assessed *CRG D*: unit, execution, reflexive, smoke, contract, regression
+and coupling tests are present and passing in the home context, with a stated
+matrix. Not *C*, because P2P, E2E, lifecycle and benchmarks are not satisfied —
+two of those are N/A by the component's nature, and the taxonomy's own §Scope
+treats "N/A with justification" as a truthful state rather than a gap to paper
+over.
+
+The distance to *B* is dominated by two things worth doing: a scored mutation
+pass over the gate fixtures, and property-based coverage of the reader's ref
+normalisation. Neither is claimed today.
