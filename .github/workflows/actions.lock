@@ -4,14 +4,9 @@
 version: 'v0.0.2'
 workflows:
     '.github/workflows/ci-health-sweep.yml':
-        - 'actions/checkout@v7.0.1'
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
     '.github/workflows/labels.yml': []
     '.github/workflows/label-triage.yml': []
-    '.github/workflows/zz-probe-lockmatch.yml':
-        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
-    '.github/workflows/zz-probe-lockmismatch.yml':
-        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
-    '.github/workflows/zz-probe-noactions.yml': []
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
