@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MPL-2.0
+# TEMPORARY verification probe (session arena/01a0e520): confirms that a
+# workflow covered by a regenerated actions.lock starts (see the PR body for
+# the before/after run ids). Deleted before the PR is finished.
+name: zz-probe-verify
+on: push
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: echo "lock-covered probe started"

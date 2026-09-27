@@ -5,16 +5,75 @@ version: 'v0.0.2'
 workflows:
     '.github/workflows/ci-health-sweep.yml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
-    '.github/workflows/labels.yml': []
+    '.github/workflows/codeql.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'github/codeql-action@1c5b675653bb5c22dbe9b12b556ec555138e09fd'
     '.github/workflows/label-triage.yml': []
+    '.github/workflows/labels.yml': []
+    '.github/workflows/oikosbot.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'github/codeql-action@1c5b675653bb5c22dbe9b12b556ec555138e09fd'
+    '.github/workflows/pages.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e'
+        - 'actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa'
+    '.github/workflows/scorecard.yml':
+        - 'hyperpolymath/standards@892497fe373744874316710966b81ae6f0ea9e66'
+    '.github/workflows/secret-scanner.yml':
+        - 'hyperpolymath/standards@092dedada188f56c5915f74a5fd40aac093742c3'
+    '.github/workflows/zz-probe-verify.yml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
 dependencies:
-    'actions/checkout@v7.0.1':
-        ref: 'v7.0.1'
-        commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
-        owner_id: 44036562
-        repo_id: 197814629
     'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1':
         ref: '3d3c42e5aac5ba805825da76410c181273ba90b1'
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
+    'actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e':
+        ref: 'd6db90164ac5ed86f2b6aed7e0febac5b3c0c03e'
+        commit: 'sha1-d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e'
+        owner_id: 44036562
+        repo_id: 438112499
+    'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a':
+        ref: '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
+        commit: 'sha1-043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
+        owner_id: 44036562
+        repo_id: 192625955
+    'actions/upload-artifact@v4':
+        ref: 'v4'
+        commit: 'sha1-ea165f8d65b6e75b540449e92b4886f43607fa02'
+        owner_id: 44036562
+        repo_id: 192625955
+    'actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa':
+        ref: '56afc609e74202658d3ffba0e8f6dda462b719fa'
+        commit: 'sha1-56afc609e74202658d3ffba0e8f6dda462b719fa'
+        owner_id: 44036562
+        repo_id: 496012378
+        uses:
+            - 'actions/upload-artifact@v4'
+    'github/codeql-action@1c5b675653bb5c22dbe9b12b556ec555138e09fd':
+        ref: '1c5b675653bb5c22dbe9b12b556ec555138e09fd'
+        commit: 'sha1-1c5b675653bb5c22dbe9b12b556ec555138e09fd'
+        owner_id: 9919
+        repo_id: 259445878
+    'hyperpolymath/standards@092dedada188f56c5915f74a5fd40aac093742c3':
+        ref: '092dedada188f56c5915f74a5fd40aac093742c3'
+        commit: 'sha1-092dedada188f56c5915f74a5fd40aac093742c3'
+        owner_id: 6759885
+        repo_id: 1116521501
+        uses:
+            - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+    'hyperpolymath/standards@892497fe373744874316710966b81ae6f0ea9e66':
+        ref: '892497fe373744874316710966b81ae6f0ea9e66'
+        commit: 'sha1-892497fe373744874316710966b81ae6f0ea9e66'
+        owner_id: 6759885
+        repo_id: 1116521501
+        uses:
+            - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+            - 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
+            - 'ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc'
+    'ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc':
+        ref: '2d1146689b8cda280b9bc96326124645441f03bc'
+        commit: 'sha1-2d1146689b8cda280b9bc96326124645441f03bc'
+        owner_id: 67707773
+        repo_id: 421101922
