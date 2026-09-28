@@ -122,7 +122,9 @@ OikosBot analysis*.
 | *refused while an agent pushes it*
 | TEMPORARY, read-only. Exists to answer one question — can a GitHub runner
 obtain and run `gh actions-lock`? — which cannot be answered from the authoring
-environment. Delete it once the answer is recorded.
+environment. Its one run so far, `36397686847` on PR #44, was refused by cause 2,
+so the question is still open and needs a permitted actor to re-run it. Delete
+the file once the answer is recorded.
 
 | `pages.yml`
 | —
@@ -391,9 +393,16 @@ actor `arena-ai-coding-agent[bot]`, head `55e0ae2b6d`), read again on 2026-09-28
 Scanner 6, OikosBot 6, CodeQL Security Analysis 6, Labels 3, Lock Sync Gate 2,
 CI 2, and `zz-probe-*` 9 — those nine being five *earlier* probes
 (`zz-probe-lockmatch`, `-lockmismatch`, `-nolock`, `-noactions`, `-verify`)
-pushed on branch `arena/01a0e520-…` on 2026-09-27, all refused. The probe written
-for this task, `zz-probe-actions-lock.yml`, has therefore never run at all: it is
-not registered as a workflow and has no run history.
+pushed on branch `arena/01a0e520-…` on 2026-09-27, all refused.
++
+The count is now 40, and the newest six are the most useful specimen because
+they belong to a branch a reader can inspect directly: the push of PR #44 at
+08:29 UTC on 2026-09-28 was refused for CI `36397682218`, CodeQL `36397682972`,
+Lock Sync Gate `36397683786`, OikosBot `36397684699`, Secret Scanner
+`36397685644` and the new probe `36397686847` — while `36397678787`, the
+`dynamic`-event run on the same push at the same second, **succeeded**. Six
+refusals and one success from one push is cause 2 reproducing itself on demand,
+and it is why PR #44's own checks are red before anyone reads a line of it.
 
 | What fixes it
 | Make the workflow's refs and the lock agree. #42 did that for the sweep; the
