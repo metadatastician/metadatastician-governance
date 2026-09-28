@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell (hyperpolymath)
+# Owner: Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+#
+# Estate Sweep Watchdog — monitors the monitors.
+#
+# Why this exists: the CI-Health Sweep is the estate's only detector for the
+# infrastructure failure classes, and on 2026-09-24 its lockfile drifted (the
+# sweep's checkout ref was pinned to a SHA while actions.lock still recorded the
+# tag). GitHub refused the run at startup — zero jobs, no log — so the sweep
+# stopped running AND stopped reporting that it had stopped. The rolling
+# CI-health issue (#30) kept showing the 2026-09-20 report and looked current.
+# A monitor that can be switched off by the class it monitors is not a monitor.
+#
+# So this workflow watches the sweep's own run history and opens a separate
+# rolling issue when the sweep is late or its latest run failed to start. It
+# deliberately carries NO `uses:` of its own (no actions/checkout, no
+# third-party action), because that is the only shape that cannot be taken out
+# by a lockfile problem. Do not add a `uses:` to this file.
+name: Estate Sweep Watchdog
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # daily 07:17 UTC — after the 04:47 sweep has had time to run
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: estate-sweep-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    name: CI-Health Sweep is running
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check the sweep's run history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TITLE="🩺 CI-Health: sweep is not running"
+          STALE_HOURS=26          # daily schedule + slack for queueing
+          run_json=$(gh api "repos/${REPO}/actions/workflows/ci-health-sweep.yml/runs?per_page=20")
+          last_ok=$(printf '%s' "$run_json" | jq -r '[.workflow_runs[] | select(.conclusion=="success")][0].created_at // ""')
+          last_any=$(printf '%s' "$run_json" | jq -r '[.workflow_runs[]][0] | [.conclusion, .created_at, .id] | @tsv')
+          printf 'last successful sweep: %s\nlatest run: %s\n' "${last_ok:-none}" "$last_any"
+
+          stale=false
+          cutoff=$(date -u -d "${STALE_HOURS} hours ago" +%Y-%m-%dT%H:%M:%SZ)
+          if [ -z "$last_ok" ]; then
+            stale=true
+          else
+            [ "$last_ok" \< "$cutoff" ] && stale=true
+          fi
+          latest_conclusion=$(printf '%s' "$last_any" | cut -f1)
+          if [ "$latest_conclusion" = "startup_failure" ]; then stale=true; fi
+
+          if [ "$stale" = false ]; then
+            echo "sweep is healthy; nothing to report"
+            exit 0
+          fi
+
+          latest_id=$(printf '%s' "$last_any" | cut -f3)
+          body=$(cat <<EOF
+          ## 🩺 CI-Health: the sweep itself is not running
+
+          _Checked $(date -u +%Y-%m-%dT%H:%MZ) · last successful sweep: \`${last_ok:-never}\`_
+
+          The rolling CI-health report is only as fresh as its last successful run, and
+          a run that fails at *startup* creates zero jobs, writes no log, and looks like
+          a check that simply never ran. That is how the 2026-09-20 report stayed on
+          issue #30 while the sweep was dead from 2026-09-24 to at least 2026-09-27.
+
+          Latest run: [\`${latest_id}\`](https://github.com/${REPO}/actions/runs/${latest_id})
+          (\`${latest_conclusion}\`), created $(printf '%s' "$last_any" | cut -f2).
+
+          \`startup_failure\` has two causes and they need opposite responses:
+
+          1. **An invalid lockfile.** The run page annotation reads "Invalid lockfile …
+          The lockfile could not be validated. Regenerate it by running \`gh actions-lock\`".
+          Check with \`scripts/check-lock-sync.sh\` and \`scripts/check-lock-pins.sh\`;
+          see \`.github/workflows/lock-sync-gate.yml\`.
+
+          2. **An actor GitHub refuses.** The annotation reads "Actor is not allowed to
+          trigger Actions workflows". This is decided *before any workflow file is read*,
+          so no repository change fixes it — the org or repository Actions policy must
+          permit the triggering app. It affects even workflows with no \`uses:\` and
+          repositories with no lockfile, which is how it was mistaken for lock drift.
+
+          \`scripts/ci-health/detect.sh\` separates them (\`B-LOCKFILE\` / \`B-BADPIN\`
+          versus \`B-ACTOR\`). If the newest failing run was triggered by an app, read
+          the run page annotation before changing any file.
+
+          This issue closes itself on the next healthy sweep run.
+          EOF
+          )
+
+          num=$(gh issue list --repo "$REPO" --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --repo "$REPO" --body "$body" >/dev/null
+            echo "updated watchdog issue #$num"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$body" >/dev/null
+            echo "opened watchdog issue"
+          fi

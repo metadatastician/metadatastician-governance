@@ -42,7 +42,7 @@ jobs:
           fi
           ./.ddraig-ssg/build/exec/ddraig build src _site https://hyperpolymath.github.io/${GITHUB_REPOSITORY#*/}
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@025230e8a226e8877c8f1237634e18e834885a29 # v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: '_site'
   deploy:
@@ -59,4 +59,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@1224527371c5b7e88774796549356b3449125533 # v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

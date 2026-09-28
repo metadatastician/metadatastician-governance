@@ -55,6 +55,99 @@ if [ "$R" = @organization ]; then
   exit 0
 fi
 
+# diagnose_startup_failures — attribute each default-branch startup failure to a
+# cause, using the same checkers the lock-sync gate runs. Emits one finding per
+# cause; a failure with no attributable cause is still reported, aggregated, so
+# the class can never be silently dropped.
+diagnose_startup_failures() {
+  local tmp drift_out dead_out path br p content n_unexplained=0
+  local paths=() drift_rows=() dead_pins=()
+  tmp=$(mktemp -d) || die_api "cannot create a work directory for startup diagnosis"
+  mkdir -p "$tmp/.github/workflows"
+
+  for entry in "${sf_list[@]}"; do
+    path=${entry%%$'\t'*}
+    br=${entry#*$'\t'}
+    if [ -n "$br" ] && [ "$br" != "$default_branch" ]; then
+      echo "NOTE $R $path startup_failure on $br (branch-scoped, not default-branch health)" >&2
+      continue
+    fi
+    [ -n "$path" ] && paths+=("$path")
+  done
+  if [ "${#paths[@]}" -eq 0 ]; then
+    rm -rf "$tmp"
+    return 0
+  fi
+
+  # Mirror the repository's workflow directory + lock so the shared, offline
+  # checkers can be run against the API view of the default branch.
+  if ! wf_paths=$(gh api --paginate "repos/$O/$R/git/trees/$default_branch?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$"))) | .path'); then
+    rm -rf "$tmp"
+    die_api "workflow enumeration failed; startup-failure causes are unknown"
+  fi
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    if ! content=$(gh api "repos/$O/$R/contents/$p?ref=$default_branch" --jq '.content'); then
+      rm -rf "$tmp"
+      die_api "workflow-content query failed for $p; startup-failure causes are unknown"
+    fi
+    mkdir -p "$tmp/$(dirname "$p")"
+    printf '%s' "$content" | base64 -d >"$tmp/$p"
+  done <<<"$wf_paths"
+  if lockb64=$(gh api "repos/$O/$R/contents/.github/workflows/actions.lock?ref=$default_branch" --jq '.content' 2>/dev/null); then
+    printf '%s' "$lockb64" | base64 -d >"$tmp/.github/workflows/actions.lock"
+  fi
+
+  # NOTE the argument is a repo ROOT, not a workflows directory: the checker
+  # derives <root>/.github/workflows itself. Passing the workflows dir (as an
+  # earlier revision did) made the checker find no lockfile, report "out of the
+  # enforcement cohort", exit 0, and silently disable this whole diagnosis.
+  # `check-lock-sync.sh` exits 1 on drift and 2 when no check could be made;
+  # both collapse to "nothing to report here" below, and the unexplained-failure
+  # aggregate is what keeps a 2 from being read as a clean bill of health.
+  if drift_out=$("$HERE/../check-lock-sync.sh" "$tmp" 2>&1); then
+    drift_out=""
+  fi
+
+  local -A seen_drift=()
+  while IFS=$'\t' read -r path reason; do
+    [ -z "$path" ] && continue
+    seen_drift["$path"]=1
+    emit B-LOCKFILE HIGH "ERR-SEC-004: $path $reason → regenerate actions.lock in the same commit as the ref change (gh actions-lock --no-migrate-local-actions; review the diff)"
+  done < <(printf '%s\n' "$drift_out" | awk '
+    /^FAIL / { p = $2; next }
+    /^[[:space:]]+(refs missing from the lockfile:|stale lockfile entries:|stale lockfile entry: no such workflow file|no dependencies record|malformed dependency key|dependency has no resolvable commit|the recorded commit disagrees)/ {
+      sub(/^[[:space:]]+/, "");
+      if (p != "") { print p "\t" $0; p = "" }
+    }')
+
+  # A pin that resolves to no commit at all cannot be locked, so the lock can
+  # never be brought back into sync until the workflow is re-pointed.
+  if dead_out=$("$HERE/../check-lock-pins.sh" "$tmp" 2>&1); then
+    dead_out=""
+  fi
+  while IFS= read -r line; do
+    case "$line" in
+    DEAD\ *) dead_pins+=("${line#DEAD }") ;;
+    esac
+  done <<<"$dead_out"
+  if [ "${#dead_pins[@]}" -gt 0 ]; then
+    for pin in "${dead_pins[@]}"; do
+      emit B-BADPIN HIGH "ERR-SEC-005: $pin does not resolve to any commit (API 422) → re-point the workflow at the real commit for the version its comment names, then regenerate actions.lock"
+    done
+  fi
+
+  for p in "${paths[@]}"; do
+    if [ -z "${seen_drift[$p]:-}" ] && [ "${#dead_pins[@]}" -eq 0 ]; then
+      n_unexplained=$((n_unexplained + 1))
+    fi
+  done
+  if [ "$n_unexplained" -gt 0 ]; then
+    emit B-STARTUPFAIL HIGH "$n_unexplained active workflow(s) have startup_failure as their latest run after policy epoch $STARTUP_FAILURE_SINCE and no lock cause was found → inspect the run banner in the web UI (the API does not expose it)"
+  fi
+  rm -rf "$tmp"
+}
+
 # --- Skip logic (own repos only; one API call for both flags)
 if ! af=$(gh api "repos/$O/$R" --jq '[.archived, .fork, .default_branch] | @tsv'); then
   die_api "repository metadata query failed; no health conclusion drawn"
@@ -77,16 +170,46 @@ if ! workflows=$(gh api --paginate "repos/$O/$R/actions/workflows?per_page=100" 
   die_api "active-workflow enumeration failed; run health is unknown"
 fi
 billing=false
-sf=0
+sf_list=()      # "path<TAB>head_branch" for each active workflow whose latest run is a startup_failure
+actor_refused=()  # "path<TAB>actor" for startup failures caused by an actor GitHub refuses to run
 while IFS= read -r workflow_id; do
   [ -z "$workflow_id" ] && continue
-  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.conclusion // ""), (.created_at // "")] | @tsv'); then
+  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.path // ""), (.conclusion // ""), (.created_at // ""), (.head_branch // ""), (.actor.login // ""), (.triggering_actor.login // "")] | @tsv'); then
     die_api "latest-run query failed for workflow $workflow_id; run health is unknown"
   fi
   [ -z "$latest" ] && continue
-  IFS=$'\t' read -r run_id conclusion created_at <<<"$latest"
+  IFS=$'\t' read -r run_id wf_path conclusion created_at wf_branch actor trigger_actor <<<"$latest"
   if [ "$conclusion" = startup_failure ] && [[ "$created_at" > "$STARTUP_FAILURE_SINCE" ]]; then
-    sf=$((sf + 1))
+    # ── Two DIFFERENT causes produce the identical `startup_failure` symptom ──
+    #
+    # 1. An invalid lockfile. Verified here 2026-09-28 on run 36295476367: the
+    #    run page annotation reads "Invalid lockfile:
+    #    .github/workflows/actions.lock#L1 — The lockfile could not be validated.
+    #    Regenerate it by running `gh actions-lock`." Actor: a human, event:
+    #    schedule.
+    #
+    # 2. An actor GitHub will not let run Actions at all. Verified on run
+    #    36359814257: the annotation reads "Actor is not allowed to trigger
+    #    Actions workflows. Workflow file: '.github/workflows/labels.yml'."
+    #    Actor: a GitHub App (a coding agent). The affected workflow had NO
+    #    `uses:` and its lock entry was `[]`, and it still could not start —
+    #    and the same happened in repos carrying no lockfile at all. No YAML or
+    #    lockfile change can fix this; it is settled before any file is read.
+    #
+    # Both are `startup_failure` with zero jobs and no REST-visible reason, so
+    # only the actor distinguishes them from the API. Classifying them together
+    # makes the whole class unfixable-by-reading-the-files, which is how it
+    # survived four rolling issues.
+    case "$actor" in
+    *"[bot]")
+      # App-triggered. Scheduled and human-triggered runs are the ones a lock
+      # fault can actually kill; record app-triggered ones separately.
+      actor_refused+=("$wf_path"$'\t'"$actor")
+      ;;
+    *)
+      sf_list+=("$wf_path"$'\t'"$wf_branch")
+      ;;
+    esac
   fi
   [ "$conclusion" = failure ] || continue
   if ! job_ids=$(gh api --paginate "repos/$O/$R/actions/runs/$run_id/jobs?per_page=100" --jq '.jobs[].id'); then
@@ -118,8 +241,35 @@ fi
 # converges this to zero-missing and detect stops re-firing (idempotent).
 [ "${CHECK_ALLOWLIST:-true}" = true ] && check_allowlist "repos/$O/$R"
 
-# --- B: active startup failures (symptom).
-[ "$sf" -gt 0 ] && emit B-STARTUPFAIL HIGH "$sf active workflow(s) have startup_failure as their latest run after policy epoch $STARTUP_FAILURE_SINCE → inspect the run banner and policy/pinning inputs"
+# --- B: active startup failures, diagnosed.
+# The API never exposes the startup failure's reason, but the two causes that
+# dominate this estate are both checkable from the repository files, so report
+# the cause instead of sending a human to read a web banner (which is what made
+# this class re-fire, unactionable, through four rolling issues):
+#
+#   * lock drift  - a workflow whose `uses:` refs are not recorded under its own
+#                   path in .github/workflows/actions.lock. GitHub refuses the
+#                   run at creation: zero jobs, no log. Fix by regenerating the
+#                   lock in the same commit as the ref change.
+#   * a dead pin  - a `uses:` ref that resolves to no commit at all (a re-pointed
+#                   SHA that does not exist). Unlockable until re-pointed.
+#
+# A third cause shares the identical symptom and is reported separately as
+# B-ACTOR: GitHub refusing the *actor* outright ("Actor is not allowed to
+# trigger Actions workflows"). It is decided before any workflow file is read,
+# so it is invisible to every file-based check, and it is the cause of the
+# app-authored failures this sweep previously could not explain.
+#
+# Branch-scoped failures (a run on a feature branch) are not this repository's
+# default-branch health and are skipped rather than reported.
+if [ "${#actor_refused[@]}" -gt 0 ]; then
+  n_actor=${#actor_refused[@]}
+  first=${actor_refused[0]}
+  emit B-ACTOR HIGH "ERR-SEC-006: $n_actor active workflow(s) refused at startup because GitHub does not allow the triggering actor to run Actions (run-page annotation: 'Actor is not allowed to trigger Actions workflows'); latest: ${first%%$'\t'*} triggered by ${first#*$'\t'} → OWNER/SETTINGS: permit this app to trigger workflows in the org or repository Actions policy. This is not a YAML or lockfile fault and no file change can fix it."
+fi
+
+[ "${#sf_list[@]}" -gt 0 ] && diagnose_startup_failures
+
 
 # --- D: burn anti-pattern (bare [push, pull_request] double-trigger), via API
 if ! paths=$(gh api "repos/$O/$R/git/trees/$default_branch?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$"))) | .path'); then

@@ -21,3 +21,81 @@ Language/toolchain profiles, release requirements, MAA profiles, and implementat
 == Deviations
 
 No substantive deviation is authorised in this initial draft. Existing repositories may predate current metadata and terminology conventions; that is migration debt, not an implicit deviation. Each exception requires scope, authority, reason, containment, evidence status, and review date.
+
+== Sequenced upstream adoptions (in force upstream, not yet actionable here)
+
+Upstream sometimes rules a standard *before* the estate can comply with it, and
+sequences the compliance work behind a proof so that a half-built gate is not
+mistaken for a working one. Those rules are recorded here so that no repository
+in this estate silently invents its own answer.
+
+=== Y-1 — gates read YAML with a parser (IN FORCE, adopted here now)
+
+`hyperpolymath/standards` `3-practice/YAML-POLICY.adoc`, ruled 2026-09-22:
+*any gate, check script, audit or census that needs a value out of a YAML file
+MUST obtain it with `yq`; reading YAML with `grep`, `sed`, `awk` or a regex is
+forbidden in gate code.*
+
+Status here: *adopted*. `scripts/lib/yaml.sh` is the single reader. It resolves
+a document with a real parser and hands canonical JSON to `jq`, and there is no
+text-reading fallback in it. Every gate in `scripts/` that touches YAML uses it.
+
+*Recorded deviation, narrow.* Y-1 names `yq`. This repository prefers `yq` and
+uses it when present, but falls back to another *real parser* (`ruby`, then
+`python3`+PyYAML) when it is not, following the precedent in upstream's own
+`tools/policy/check-workflows-parse.sh`, which falls back to `ruby`. The reason
+is operational: GitHub's `ubuntu-latest` does not ship mikefarah `yq`, and this
+repository's gates must not be the reason a runner cannot start. The deviation
+is *not* extended to text readers — that remains forbidden, because a
+line-oriented reader giving a confident answer about a structure it cannot see
+is the defect class Y-1 exists to end. Re-arm trigger: when a pinned `yq` is
+available on the runner image or via a pinned install step that does not add a
+`uses:` to a uses-free gate, drop the fallbacks and require `yq`.
+
+=== Y-2 / Y-3 — `yq` for writing, and KYAML as the authoring dialect (SEQUENCED)
+
+*Status: nothing in this repository is out of compliance, because neither rule
+imposes anything today.* Y-2 (`yq` for writing) and Y-3 (KYAML) are both gated
+on a comment-preservation proof, and Y-3's scope is an owner ruling that has
+deliberately not been made. The upstream sequence is:
+
+[cols="1,4,4",options="header"]
+|===
+| Step | Upstream issue | Gate to pass
+
+| 1 | standards#1020 (closed) | GitHub Actions parses a KYAML workflow — proven
+  by a two-arm same-commit probe (`jobs = 1` on both arms)
+| 2 | standards#1021 | comment-preservation proof: every comment kept, kept in
+  *association* with its line, idempotent under `cmp`, and a dropped-comment
+  mutant dies
+| 3 | standards#1022 | a formatter/linter for arbitrary YAML
+| 4 | standards#1023 | *owner ruling on scope* — not an inference from the probe
+| 5 | standards#1024 | migrate estate-authored, non-bot YAML
+| 6 | standards#1025 | workflows, only if step 4 rules them in
+|===
+
+Owner ruling D14 (2026-09-26) adds two facts this repository must respect: the
+migration is **piloted on `hyperpolymath/standards` first**, and the
+`boj-server` / `boj-server-cartridges` updates needed for the KYAML route sit on
+the same critical path rather than after it.
+
+Consequence for this repository, stated plainly so nobody re-derives it: *no
+YAML here is to be converted to KYAML yet.* `§5` forbids starting a step before
+its predecessor has landed evidence, and the policy's own preamble forbids
+citing a rule that is not in force as though it were settled. What this
+repository does instead is measure its own migration surface accurately, so the
+step that eventually runs is mechanical:
+
+* `scripts/kyaml-census.sh` — read-only census. It reports which files belong to
+  step 5 (`estate-authored`) and step 6 (`bot-rewritten`: workflow YAML, which
+  Dependabot and `gh actions-lock` write), which are tool-owned and excluded
+  (`actions.lock` — "must never be hand-edited or reformatted"), and how many
+  comment lines are at risk. That last number is the population the #1021 proof
+  has to preserve; at the time of writing it is 173.
+* The census converts nothing. `yq -i` and every other blind rewrite stay
+  forbidden here until #1021 lands.
+
+Migration point, so the step is booked rather than remembered: when #1023 rules
+scope and #1021/#1022 have landed, the work here is *step 5 for the twelve
+estate-authored YAML files and step 6 for the workflows, if ruled in*, with the
+census output as the work list and the comment count as the acceptance measure.

@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell (hyperpolymath)
+# Owner: Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+#
+# CI — the repository's own gates: tests, workflow startability, licence headers.
+#
+# DELIBERATELY CARRIES NO `uses:` AT ALL.
+#
+# Every external action this workflow called would be a `uses:` ref that must be
+# recorded in .github/workflows/actions.lock under this file's own path, and a
+# ref the lock does not record makes GitHub refuse the run at creation —
+# `startup_failure`, zero jobs, no log. That is the failure this repository is
+# recovering from (see .github/workflows/ci-health-sweep.yml), so the gate that
+# exists to catch it must not be able to suffer it. Checkout is done by calling
+# git in a `run:` step, so this file's lock entry is `[]` and can never drift.
+#
+# Do not add a `uses:` to this file. The same rule governs labels.yml,
+# label-triage.yml, lock-sync-gate.yml and estate-sweep-watchdog.yml.
+#
+# Division of labour:
+#   ci.yml             — do the repository's scripts work, and can every
+#                        workflow start at all?
+#   lock-sync-gate.yml — does actions.lock agree with the workflow YAML, and
+#                        does every pin it records actually resolve?
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    name: Repository gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out without actions/checkout
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # `github.sha` only. On a pull_request event this is the MERGE COMMIT
+          # -- the content that would land on main -- not the contributor's head
+          # commit. Fetching a contributor-controlled ref (refs/pull/N/head) into
+          # a workflow that then executes repository scripts is the cache-poisoning
+          # shape CodeQL flags, and the merge commit tests the same content
+          # without it. Do not "improve" this by adding a head-sha fallback.
+          git init -q .
+          git remote add origin "https://github.com/${REPO}.git"
+          git fetch -q --depth 1 origin "${SHA}"
+          git checkout -q FETCH_HEAD
+          echo "checked out $(git rev-parse --short HEAD)"
+
+      - name: State the environment honestly
+        run: |
+          set -euo pipefail
+          # Rule 3 of the Tooling Version Integrity Policy: a gate must be able
+          # to show the work actually ran. Print the tools and versions first,
+          # so a green run cannot mean "the runner never did anything".
+          printf 'yq:      %s\n' "$(yq --version 2>/dev/null | head -1 || echo 'ABSENT (gates fall back to ruby/python)')"
+          printf 'ruby:    %s\n' "$(ruby --version 2>/dev/null | head -1 || echo 'ABSENT')"
+          printf 'jq:      %s\n' "$(jq --version 2>/dev/null || echo ABSENT)"
+          printf 'python3: %s\n' "$(python3 --version 2>/dev/null || echo ABSENT)"
+          printf 'gh:      %s\n' "$(gh --version 2>/dev/null | head -1 || echo ABSENT)"
+
+      - name: Shell test suite (silence + firing fixtures)
+        run: ./scripts/run-shell-test-suite.sh
+
+      - name: Every workflow parses, has jobs, and can start
+        run: ./scripts/check-workflows-parse.sh
+
+      - name: Licence headers
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r f; do
+            if ! head -5 "$f" | grep -q 'SPDX-License-Identifier'; then
+              echo "::error file=$f::missing SPDX-License-Identifier in the first 5 lines"
+              fail=1
+            fi
+          done < <(git ls-files -z -- 'scripts/**/*.sh' 'scripts/*.sh' '.github/workflows/*.yml' | tr '\0' '\n' | grep -v '^$')
+          if [ "$fail" -ne 0 ]; then
+            echo "licence header check failed"
+            exit 1
+          fi
+          echo "all tracked scripts and workflows carry an SPDX identifier"
+
+      - name: Estimate the KYAML migration surface (informational)
+        run: |
+          set -euo pipefail
+          # Read-only census for hyperpolymath/standards YAML-POLICY steps 5-6.
+          # Y-3 imposes nothing today, so this is not a gate: it reports the
+          # population a future migration would touch, and the comment lines
+          # that the #1021 comment-preservation proof has to protect.
+          ./scripts/kyaml-census.sh | tail -12

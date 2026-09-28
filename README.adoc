@@ -21,6 +21,8 @@ This repository is the organisation-wide governance home for The Metadatastician
 * link:docs/governance/CONTRIBUTION-CONSTITUTION.adoc[Contribution policy]
 * link:docs/governance/SECURITY-AND-ASSURANCE.adoc[Security and assurance routes]
 * link:docs/governance/KNOWN-TENSIONS.adoc[Known tensions and limitations]
+* link:docs/governance/CI-CD-COVERAGE.adoc[CI/CD coverage and gaps] — what runs, what does not, and why
+* link:TEST-NEEDS.adoc[Test needs and evidence status] — which test categories are satisfied, thin, or N/A
 * link:docs/governance/CHANGE-PROCEDURE.adoc[Policy change and challenge procedure]
 
 == Architecture decisions

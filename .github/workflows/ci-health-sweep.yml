@@ -43,7 +43,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # ── Why this is a readable tag and not a SHA ─────────────────────────
+      # GitHub Actions resolves a workflow's `uses:` refs THROUGH
+      # .github/workflows/actions.lock. A ref the lock does not record *under
+      # this workflow's own path* makes GitHub refuse the run at creation:
+      # `startup_failure`, zero jobs, no log, nothing in REST or GraphQL.
+      #
+      # On 2026-09-24 this line was changed from `@v7.0.1` to
+      # `@3d3c42e5aac5ba805825da76410c181273ba90b1` and the lock was not
+      # regenerated. The sweep has been dead ever since (runs 35957324128,
+      # 36096095736, 36218967182, 36295476367 — all startup_failure), which is
+      # why issue #30 kept showing a stale report that looked current.
+      #
+      # `actions.lock` records this ref's immutable commit
+      # (commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'), and the lock
+      # is what actually runs. So the tag is not a weaker pin here — the
+      # immutability lives in the lock, and the readable ref keeps the workflow
+      # reviewable. This is the shape the estate documents in
+      # hyperpolymath/seamstress#75. Restoring it is the smallest change that
+      # puts the ref and the lock back into agreement.
+      #
+      # Re-arm trigger: when a working `gh actions-lock` can regenerate the lock
+      # here (see the lock-sync gate's notes), re-pin to the SHA and regenerate.
+      - uses: actions/checkout@v7.0.1
       - name: Run CI-health sweep
         env:
           # PAT needs classic `repo` + `workflow` + `admin:org` scopes:
