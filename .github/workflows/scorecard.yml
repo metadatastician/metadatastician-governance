@@ -34,15 +34,30 @@ jobs:
     # ancestor of main (`status=ahead`, 0 behind), and its run 36361142459 in the
     # same push succeeded.
     #
-    # Honest status of that reading: the callee file exists at both pins, its
-    # permissions are a subset of what this caller grants at both pins, and its
-    # own action pins resolve at both — so "the pin is off the default branch" is
-    # the leading hypothesis and NOT an established cause, because the job log
-    # cannot be downloaded from the authoring environment (the results-receiver
-    # blob host is unreachable there). Falsification is cheap and observable: if
-    # the next run of this workflow on main still fails with zero jobs, the pin's
-    # branch membership was not the cause and this comment must be corrected
-    # rather than left to imply a fix that did not happen.
+    # CONFIRMED, 2026-09-28T08:33Z, by the next run of this workflow on main.
+    # Run 36398032843 (push of the merge commit 3eb6625d91) created ONE job —
+    # where 36361142305 had created zero — and every step succeeded:
+    # `Pull ghcr.io/ossf/scorecard-action:v2.4.3`, `Checkout code`, `Run
+    # Scorecard Analysis`, `Upload results artifact`. The pulled action version is
+    # itself the evidence that the new callee ran: v2.4.3 is what
+    # scorecard-reusable.yml pins at 2ccc38ea…, where the old pin 892497fe… pinned
+    # v2.4.4. So the re-point changed the executed callee, and the zero-job
+    # failure went away with it.
+    #
+    # What was honestly unknown when this line was written, and what closed it:
+    # the callee existed at both pins, its permissions were a subset of the
+    # caller's grant at both, and its own pins resolved at both — so "the pin is
+    # off the default branch" was a leading hypothesis, not an established cause,
+    # because the job log could not be downloaded from the authoring environment.
+    # The falsification criterion was recorded rather than left implicit: if the
+    # next run still failed with zero jobs, branch membership was not the cause
+    # and this comment had to be corrected. It did not fail, so the criterion is
+    # discharged in favour of the hypothesis. One caveat survives the
+    # confirmation and should not be lost: this is a single before/after pair with
+    # one variable changed, which is good evidence and not a proof of mechanism —
+    # GitHub's actual rule for resolving cross-repo reusable calls at a commit
+    # that is not an ancestor of the callee's default branch is still undocumented
+    # as far as this repository can tell.
     #
     # Permission subset check, measured at the new pin so this re-point cannot
     # introduce the failure class of hyperpolymath/standards#451 (a called
