@@ -47,23 +47,17 @@ jobs:
         env:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
-          PR: ${{ github.event.number }}
-          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          # `github.sha` only. On a pull_request event this is the MERGE COMMIT
+          # -- the content that would land on main -- not the contributor's head
+          # commit. Fetching a contributor-controlled ref (refs/pull/N/head) into
+          # a workflow that then executes repository scripts is the cache-poisoning
+          # shape CodeQL flags, and the merge commit tests the same content
+          # without it. Do not "improve" this by adding a head-sha fallback.
           git init -q .
           git remote add origin "https://github.com/${REPO}.git"
-          if [ "$EVENT" = "pull_request" ] && [ -n "$PR" ]; then
-            # The pull_request ref works for fork and same-repo PRs alike,
-            # where fetching a bare head SHA may not.
-            if git fetch -q --depth 1 origin "refs/pull/${PR}/head"; then
-              :
-            else
-              git fetch -q --depth 1 origin "${SHA}"
-            fi
-          else
-            git fetch -q --depth 1 origin "${SHA}"
-          fi
+          git fetch -q --depth 1 origin "${SHA}"
           git checkout -q FETCH_HEAD
           echo "checked out $(git rev-parse --short HEAD)"
 

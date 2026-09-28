@@ -46,14 +46,20 @@ jobs:
       - name: Check out without actions/checkout
         env:
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          # `github.sha` only. On a pull_request event this is the MERGE COMMIT
+          # -- the content that would land on main -- not the contributor's head
+          # commit. The lock either validates for the merged tree or it does not,
+          # and reading a contributor-controlled ref in a privileged workflow is
+          # the cache-poisoning shape CodeQL flags. Do not add a head-sha
+          # fallback here.
           git init -q .
           git remote add origin "https://github.com/${REPO}.git"
           git fetch -q --depth 1 origin "${SHA}"
           git checkout -q FETCH_HEAD
-          echo "checked out ${SHA}"
+          echo "checked out $(git rev-parse --short HEAD)"
 
       - name: Verify lockfile synchronisation (both directions)
         run: |
