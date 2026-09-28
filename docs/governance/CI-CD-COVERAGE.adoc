@@ -9,26 +9,40 @@ https://github.com/hyperpolymath/standards/blob/main/CICD-WORKFLOW-CATALOG.md[CI
 Workflow Catalog]; the catalogue's instruction is to *call* reusable workflows
 from `hyperpolymath/standards` and *copy* only the non-reusable ones.
 
-Measured 2026-09-28, after pull request #42 merged. "Starts" means the run was
-created and executed; a `startup_failure` is not a red check, it is a check that
-never existed. Every run id, count and annotation quoted below was read from the
-API or the run page on that date; nothing here is inferred from a green square.
+Measured 2026-09-28, across two merges to `main` — pull request #42 at 00:09 UTC
+and pull request #44 at 08:33 UTC. "Starts" means the run was created and
+executed; a `startup_failure` is not a red check, it is a check that never
+existed. Every run id, count, step conclusion and annotation quoted below was
+read from the API or the run page on that date; nothing here is inferred from a
+green square, and where a green square *is* quoted it is quoted with the steps
+that produced it.
 
-== The state of play in four sentences
+== The state of play
 
-PR #42 merged at 2026-09-28T00:09:34Z as commit `7276ec80e5`, and *every* run
-that push created on `main` started — seven of them, zero `startup_failure`,
-which is the first time since 2026-09-24 that this repository's default branch
-has had runnable CI. **Cause 1 is now confirmed fixed by observation, not
-argument:** the sweep's next scheduled run (`36379748097`, 04:55:58 UTC) started,
-checked out *through the lockfile* — the step is literally named
-`Run actions/checkout@v7.0.1` and it succeeded — ran for 17 minutes 54 seconds,
-and then failed inside the sweep script for a reason that has nothing to do with
-the lockfile. Cause 2 (an actor GitHub refuses) is *not* fixed and cannot be
-fixed from inside this repository: 34 of the last 100 runs are refusals of the
-coding-agent app, and the annotation names the actor, not a file. Runs on `main`
-now start and then fail for ordinary reasons, and each failure is recorded below
-with what is and is not established about it.
+*Cause 1 is fixed, and fixed by observation rather than argument.* PR #42 merged
+at 2026-09-28T00:09:34Z as `7276ec80e5`, and every run that push created on
+`main` started — seven of them, zero `startup_failure`, the first time since
+2026-09-24 that this repository's default branch had runnable CI at all. The
+outstanding question was whether the sweep itself would start, and at 04:55:58
+UTC it did: run `36379748097`, step 2 `Run actions/checkout@v7.0.1` succeeded —
+the lockfile resolving a ref end to end on a runner — and the job ran for 17
+minutes 54 seconds. It then failed inside the sweep script, for a reason that has
+nothing to do with the lockfile and is diagnosed below.
+
+*The repository's own CI is now green, and one hypothesis was confirmed.* PR #44
+merged at 08:33:06Z as `3eb6625d91`. Of the seven runs that push created, five
+are green: CI passed all eight steps including the licence gate that
+`pages.yml` had been failing, Scorecard created a job and passed every step
+where its previous run had created zero, and Lock Sync Gate, Secret Scanner and
+the `dynamic` run all succeeded. CodeQL and OikosBot still fail at the same steps
+they failed at before, so they are stable pre-existing failures that #44 neither
+caused nor fixed.
+
+*Cause 2 is not fixed and cannot be fixed from inside this repository.* 40 of the
+last 100 runs are refusals of the coding-agent app, and the annotation names the
+actor, not a file. The six most recent are PR #44's own, which is why that
+pull request showed red checks before anyone read a line of it — and why the
+`gh actions-lock` probe written to settle the lock question has still never run.
 
 == The one structural rule in this repository
 
@@ -51,10 +65,14 @@ step. Do not add a `uses:` to them.
 
 | `ci.yml`
 | PR, push, dispatch
-| yes on `main`
+| yes on `main`, **green**
 | The repository's own gates: the shell test suite, the workflow-startability
 check, licence headers, and an informational KYAML census. Run `36361141993`
-started on `main` and failed at the *Licence headers* step; see below.
+failed at step 6, *Licence headers*, because of `pages.yml`; with that file
+removed, run `36398031766` (08:33 UTC, push of the #44 merge commit) passed
+**all eight steps**, including step 7, the census, which had been skipped behind
+the failure. This is the first fully green CI run on `main` in the incident's
+history.
 
 | `lock-sync-gate.yml`
 | PR, push, dispatch
@@ -72,7 +90,8 @@ and closes that issue when the sweep is fresh and successful again. Added by
 #42; its first scheduled run `36393416167` (07:45:39 UTC) **succeeded** and
 opened issue #43, correctly measuring "last successful sweep:
 2026-09-20T04:48:25Z" against a latest run of `failure`. The detector worked.
-Its *wording* did not, and that is fixed on this branch — see below.
+Its *wording* did not, and that is fixed in #44 (merged as `3eb6625d91`) — see
+below.
 
 | `ci-health-sweep.yml`
 | daily 04:47 UTC, dispatch
@@ -101,10 +120,11 @@ assumed.
 
 | `scorecard.yml`
 | cron, push main, dispatch
-| starts, but zero jobs
-| Calls the estate Scorecard reusable. Run `36361142305` failed with **zero
-jobs** and no annotation; its pin was off upstream's default branch and has been
-re-pointed — see the failure table below.
+| yes on `main`, **green**
+| Calls the estate Scorecard reusable. Its pin was off upstream's default branch
+and produced a zero-job failure (`36361142305`); it was re-pointed at the adopted
+pin and run `36398032843` then created one job and passed every step. The
+hypothesis that caused the failure is confirmed — see below.
 
 | `oikosbot.yml`
 | PR
@@ -134,12 +154,23 @@ the file once the answer is recorded.
 
 == What is red on `main` right now, and what is actually known about it
 
-Starting is not passing. These are the four failures from the merge push
-(`7276ec80e5`, 2026-09-28T00:09), with the step that failed and an honest
-statement of how far the diagnosis got. Job logs cannot be downloaded from the
-authoring environment — `results-receiver.actions.githubusercontent.com` and the
-blob host it redirects to both fail the TLS handshake there — so anything beyond
-step names is labelled as a hypothesis.
+Starting is not passing — and then passing is the next question. Two pushes to
+`main` are worth comparing, because between them this repository went from
+"everything starts, four things fail" to "five of seven are green".
+
+* `7276ec80e5`, 2026-09-28T00:09 (the #42 merge): all seven runs started, four
+  failed — CI, CodeQL, OikosBot, Scorecard.
+* `3eb6625d91`, 2026-09-28T08:33 (the #44 merge): all seven started, **CI,
+  Scorecard, Lock Sync Gate, Secret Scanner and the `dynamic` run are green**;
+  CodeQL and OikosBot still fail, and the sweep still fails at step 3 for the
+  token-scope reason below.
+
+Each row states the step that failed and how far the diagnosis got. Job logs
+cannot be downloaded from the authoring environment —
+`results-receiver.actions.githubusercontent.com` and the blob host it redirects
+to both fail the TLS handshake there — so anything beyond step names and step
+conclusions is labelled as a hypothesis, and where a hypothesis has since been
+confirmed by a run, the confirming run is named.
 
 [cols="2,2,2,4",options="header"]
 |===
@@ -181,27 +212,36 @@ confident partial one.
 
 | CI `36361141993`
 | step 6, *Licence headers*
-| **fixed here**
+| **fixed, and confirmed green**
 | Established, and reproducible offline: `.github/workflows/pages.yml` was the
 one tracked workflow with no `SPDX-License-Identifier` in its first five lines.
 Steps 4 (shell test suite) and 5 (every workflow parses, has jobs, and can
 start) both *succeeded* in that run, which is also the proof that a real YAML
 parser exists on the runner image — `check-lock-sync.sh` can only reach exit 0
-through `scripts/lib/yaml.sh`. Removing `pages.yml` clears it.
+through `scripts/lib/yaml.sh`. Removing `pages.yml` cleared it: run
+`36398031766` on the next push to `main` passed all eight steps, including
+step 7 (the informational KYAML census), which had been skipped behind the
+failure until now.
 
 | CodeQL `36361141951`
 | *Perform CodeQL Analysis*
-| not established
+| not established; reproduces identically
 | Checkout, initialise and both post-steps succeeded, so this is an analysis
 failure and not a startup or pinning one. The `actions` extractor is the only
 matrix entry. The log is not retrievable here; no claim is made about the cause.
+Run `36398031121` on the next push to `main` failed at the *same* step 4, so
+this is a stable pre-existing failure that #44 neither caused nor fixed. Note
+that it does not block merges: `EstateBranching` names CodeQL in its
+`code_scanning` rule but declares no `required_status_checks`, and PR #44 merged
+while its own CodeQL run was being refused.
 
 | OikosBot `36361141992`
 | *Run OikosBot analysis*, then *Upload SARIF*
 | not established
 | The upload failed because the analysis produced no `results.sarif`; the root is
 in the analysis step, which runs `ghcr.io/hyperpolymath/oikos:latest` by
-`docker run`. The `:latest` tag is *deliberate* and its reason is recorded in the
+`docker run`. Run `36398030720` on the next push failed at the same two steps,
+so this too is stable and pre-existing. The `:latest` tag is *deliberate* and its reason is recorded in the
 file: "The former `ghcr.io/hyperpolymath/oikos:v2.0.0` pin referenced a tag that
 never existed on the package." So the unpinned tag is an upstream packaging gap
 — there is no published version tag to pin to — not an oversight here, and it is
@@ -211,7 +251,7 @@ failed.
 
 | Scorecard `36361142305`
 | zero jobs, no annotation
-| **re-pointed, hypothesis labelled**
+| **re-pointed; hypothesis CONFIRMED by the next run**
 | The callee file exists at the old pin `892497fe…`, its permissions are a subset
 of the caller's grant, and its own action pins resolve — so none of the usual
 zero-job causes applies. What *is* measured: `892497fe…` is not an ancestor of
@@ -227,10 +267,17 @@ longer reachable upstream" as an error needing `--accept-moved`. So
 reachability-from-a-branch is an invariant this toolchain already enforces on
 *lock entries*; whether GitHub enforces the same invariant when resolving a
 cross-repo reusable call is not documented anywhere I could reach, and that gap
-is why this stays a hypothesis. This is the leading hypothesis, not an established
-cause; the next run of this workflow on `main` falsifies or confirms it, and if it
-still fails with zero jobs this row must be corrected rather than left implying a
-fix. The permission axis is separately cleared: the callee at the new pin
+is why this stays a hypothesis. The next run of this workflow on `main` was the
+falsification test, and it confirmed the hypothesis: run `36398032843` (08:33
+UTC, push of `3eb6625d91`) created **one job** where `36361142305` had created
+zero, and every step succeeded. The pulled image is itself proof that the new
+callee executed — step 2 reads `Pull ghcr.io/ossf/scorecard-action:v2.4.3`, and
+v2.4.3 is what `scorecard-reusable.yml` pins at `2ccc38ea…` where `892497fe…`
+pinned v2.4.4. One caveat survives the confirmation and should not be lost: this
+is a single before/after pair with one variable changed, which is good evidence
+and not a proof of mechanism. GitHub's actual rule for resolving a cross-repo
+reusable call at a commit that is not an ancestor of the callee's default branch
+remains undocumented as far as this repository can tell. The permission axis is separately cleared: the callee at the new pin
 requests `contents: read` plus job-level `security-events: write` and
 `id-token: write`, and this caller grants all three plus `actions: read`, so the
 re-point cannot introduce the `standards#451` zero-job class.
@@ -261,7 +308,7 @@ report" and exited before any issue handling, so #43 would have stayed open
 forever after the sweep recovered. A promise a workflow does not keep is worse
 than no promise, because it teaches people to ignore the workflow.
 
-Both are fixed on this branch, with the trigger calibration deliberately left
+Both are fixed in #44, with the trigger calibration deliberately left
 alone — *when* it fires was right, only *what it says* and *whether it cleans up*
 were wrong:
 
@@ -513,7 +560,7 @@ from the UI by a permitted actor, and a re-run executes as the person who
 clicked, using the workflow file from that run's commit. That is how the
 `gh actions-lock` probe below can be answered without merging anything.
 
-== Signed commits, and the only merge path this branch has
+== Signed commits, and the only merge path an agent branch has
 
 The estate requires signed commits on the default branch, and the commits
 authored in an agent session are not GPG-signed — the authoring environment has
@@ -552,6 +599,20 @@ a signature payload. GitHub signs the commit it creates for a squash or
 rebase-merge. The unsigned agent commits (`55e0ae2b6d` and its predecessors:
 `verification.reason: "unsigned"`) never became commits on `main`, so the rule
 never saw them.
+
+| Is that a one-off, or does it reproduce?
+| It reproduces, and the second instance is better evidence than the first
+because nobody was testing anything. PR #44, carrying one unsigned agent commit
+(`3893c13`), was squash-merged at 2026-09-28T08:33:06Z as `3eb6625d91`: ONE
+parent (`7276ec80e5`), `verified: true, reason: "valid"`, committer `GitHub`. Two
+merges, same shape, same result.
++
+It also shows something worth an owner decision, separately from anything in this
+repository: every workflow run on PR #44 was refused by cause 2 — *including
+CodeQL*, which `EstateBranching` names in its `code_scanning` rule — and the
+merge proceeded anyway, because the ruleset declares no `required_status_checks`
+and sets `required_approving_review_count: 0`. A refused CodeQL run does not
+block a merge; it just does not scan.
 
 | Therefore, what is the merge path?
 | **Squash-merge through the GitHub UI.** It produces exactly one new commit on
