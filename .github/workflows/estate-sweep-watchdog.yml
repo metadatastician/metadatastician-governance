@@ -81,10 +81,22 @@ jobs:
           Latest run: [\`${latest_id}\`](https://github.com/${REPO}/actions/runs/${latest_id})
           (\`${latest_conclusion}\`), created $(printf '%s' "$last_any" | cut -f2).
 
-          Most likely cause: \`.github/workflows/actions.lock\` drifted from the workflow
-          YAML (a workflow whose \`uses:\` refs are not recorded under its own path is
-          refused at run creation). Check with \`scripts/check-lock-sync.sh\` and
-          \`scripts/check-lock-pins.sh\`; see \`.github/workflows/lock-sync-gate.yml\`.
+          \`startup_failure\` has two causes and they need opposite responses:
+
+          1. **An invalid lockfile.** The run page annotation reads "Invalid lockfile …
+          The lockfile could not be validated. Regenerate it by running \`gh actions-lock\`".
+          Check with \`scripts/check-lock-sync.sh\` and \`scripts/check-lock-pins.sh\`;
+          see \`.github/workflows/lock-sync-gate.yml\`.
+
+          2. **An actor GitHub refuses.** The annotation reads "Actor is not allowed to
+          trigger Actions workflows". This is decided *before any workflow file is read*,
+          so no repository change fixes it — the org or repository Actions policy must
+          permit the triggering app. It affects even workflows with no \`uses:\` and
+          repositories with no lockfile, which is how it was mistaken for lock drift.
+
+          \`scripts/ci-health/detect.sh\` separates them (\`B-LOCKFILE\` / \`B-BADPIN\`
+          versus \`B-ACTOR\`). If the newest failing run was triggered by an app, read
+          the run page annotation before changing any file.
 
           This issue closes itself on the next healthy sweep run.
           EOF

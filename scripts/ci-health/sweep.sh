@@ -59,6 +59,15 @@ fi
 while IFS=$'\t' read -r repo cls _sev _detail; do
   case "$cls" in
   B-ALLOWLIST) OWNER="$O" "$HERE/remediate.sh" "$repo" "$cls" "$DRY" || true ;;
+  B-ACTOR)
+    # Decided before any workflow file is read, and settled by an org/repo
+    # Actions policy rather than by a change in the repository. Verified
+    # 2026-09-28: the run-page annotation reads "Actor is not allowed to
+    # trigger Actions workflows", and the affected workflow carried no `uses:`
+    # at all -- so there is nothing here for a bot to repair. Report it to the
+    # owner with the exact settings route; do not attempt a code fix.
+    echo "REPORT $repo/$cls: GitHub refuses this actor; owner must permit it in the org/repo Actions policy (no repo change applies)"
+    ;;
   B-LOCKFILE | B-BADPIN)
     # Diagnosed, not auto-applied: the cure is to regenerate actions.lock (or
     # re-point a dead pin) in the same commit as the ref change. Doing that
@@ -86,8 +95,8 @@ done < <(sort -u "$findings")
   grep -P '\tA-BILLING\t' "$findings" | awk -F'\t' '{print "- **"$1"** — "$4}' || true
   grep -qP '\tA-BILLING\t' "$findings" || echo "- _none_"
   echo ""
-  echo "### 🟠 B — allow-list / lockfile drift / startup_failure"
-  grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
+  echo "### 🟠 B — allow-list / lockfile drift / actor refusal / startup_failure"
+  grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|ACTOR|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
   grep -qP '\tB-' "$findings" || echo "- _none_"
   echo ""
   echo "### 🟡 D-BURN — push/PR double-trigger"

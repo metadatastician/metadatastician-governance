@@ -144,6 +144,58 @@ stands:
   a required check that never reports reads as absent rather than failing.
 |===
 
+== Two causes of `startup_failure`, and why they were confused
+
+`startup_failure` is a single symptom with two completely different causes.
+Neither is visible in the REST API; both were read off the run page annotations
+on 2026-09-28, and both are now distinguished by `scripts/ci-health/detect.sh`.
+
+[cols="2,3,3",options="header"]
+|===
+| | Cause 1 — an invalid lockfile | Cause 2 — an actor GitHub refuses
+
+| Annotation
+| "Invalid lockfile: `.github/workflows/actions.lock#L1` — The lockfile could
+  not be validated. Regenerate it by running `gh actions-lock`."
+| "Actor is not allowed to trigger Actions workflows. Workflow file:
+  `.github/workflows/labels.yml`."
+
+| Verified on
+| run `36295476367` (2026-09-27 04:50, event `schedule`, actor `hyperpolymath`)
+| run `36359814257` (2026-09-27 23:46, event `push`, actor
+  `arena-ai-coding-agent[bot]`)
+
+| Evidence it is this and not the other
+| The failures start exactly at the commit that pinned a ref the lock did not
+  record, and every one of them is on the default branch with a human/app-level
+  actor.
+| The affected workflow carried **no `uses:` at all** and its lock entry was
+  `[]`; the same refusal occurs in repositories carrying **no lockfile at all**.
+
+| What fixes it
+| Make the workflow's refs and the lock agree — this change does that for the
+  sweep.
+| An owner settings change: permit the app to trigger workflows in the org or
+  repository Actions policy. *No repository change can fix it* — it is settled
+  before any file is read.
+|===
+
+The consequence is worth stating plainly, because it cost this estate real time:
+a sweep that classifies every `startup_failure` as lock drift will report a
+settings problem as a YAML problem forever. Files can be read, regenerated and
+re-checked indefinitely and the board will not move, which is exactly how this
+class survived four rolling issues. `detect.sh` now splits them by actor —
+`B-LOCKFILE`/`B-BADPIN` for the file-readable causes, `B-ACTOR` for the
+settings cause — and `sweep.sh` reports `B-ACTOR` as owner-actionable rather
+than attempting a repair.
+
+*Standing request to the owner:* the org or repository Actions policy must
+permit the coding-agent app to trigger workflows, or every push made by an agent
+— including the ones that carry fixes — produces a wall of `startup_failure` and
+no runnable CI. Until then, no branch in this repository can be verified by a
+green run, and verification has to be static (schema-valid lock, gates green
+locally, run ids cited).
+
 == Blockers, with re-arm triggers
 
 *The lock cannot be regenerated in the authoring environment.* `gh actions-lock`

@@ -170,16 +170,46 @@ if ! workflows=$(gh api --paginate "repos/$O/$R/actions/workflows?per_page=100" 
   die_api "active-workflow enumeration failed; run health is unknown"
 fi
 billing=false
-sf_list=()   # "path<TAB>head_branch" for each active workflow whose latest run is a startup_failure
+sf_list=()      # "path<TAB>head_branch" for each active workflow whose latest run is a startup_failure
+actor_refused=()  # "path<TAB>actor" for startup failures caused by an actor GitHub refuses to run
 while IFS= read -r workflow_id; do
   [ -z "$workflow_id" ] && continue
-  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.path // ""), (.conclusion // ""), (.created_at // ""), (.head_branch // "")] | @tsv'); then
+  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.path // ""), (.conclusion // ""), (.created_at // ""), (.head_branch // ""), (.actor.login // ""), (.triggering_actor.login // "")] | @tsv'); then
     die_api "latest-run query failed for workflow $workflow_id; run health is unknown"
   fi
   [ -z "$latest" ] && continue
-  IFS=$'\t' read -r run_id wf_path conclusion created_at wf_branch <<<"$latest"
+  IFS=$'\t' read -r run_id wf_path conclusion created_at wf_branch actor trigger_actor <<<"$latest"
   if [ "$conclusion" = startup_failure ] && [[ "$created_at" > "$STARTUP_FAILURE_SINCE" ]]; then
-    sf_list+=("$wf_path"$'\t'"$wf_branch")
+    # ── Two DIFFERENT causes produce the identical `startup_failure` symptom ──
+    #
+    # 1. An invalid lockfile. Verified here 2026-09-28 on run 36295476367: the
+    #    run page annotation reads "Invalid lockfile:
+    #    .github/workflows/actions.lock#L1 — The lockfile could not be validated.
+    #    Regenerate it by running `gh actions-lock`." Actor: a human, event:
+    #    schedule.
+    #
+    # 2. An actor GitHub will not let run Actions at all. Verified on run
+    #    36359814257: the annotation reads "Actor is not allowed to trigger
+    #    Actions workflows. Workflow file: '.github/workflows/labels.yml'."
+    #    Actor: a GitHub App (a coding agent). The affected workflow had NO
+    #    `uses:` and its lock entry was `[]`, and it still could not start —
+    #    and the same happened in repos carrying no lockfile at all. No YAML or
+    #    lockfile change can fix this; it is settled before any file is read.
+    #
+    # Both are `startup_failure` with zero jobs and no REST-visible reason, so
+    # only the actor distinguishes them from the API. Classifying them together
+    # makes the whole class unfixable-by-reading-the-files, which is how it
+    # survived four rolling issues.
+    case "$actor" in
+    *"[bot]")
+      # App-triggered. Scheduled and human-triggered runs are the ones a lock
+      # fault can actually kill; record app-triggered ones separately.
+      actor_refused+=("$wf_path"$'\t'"$actor")
+      ;;
+    *)
+      sf_list+=("$wf_path"$'\t'"$wf_branch")
+      ;;
+    esac
   fi
   [ "$conclusion" = failure ] || continue
   if ! job_ids=$(gh api --paginate "repos/$O/$R/actions/runs/$run_id/jobs?per_page=100" --jq '.jobs[].id'); then
@@ -224,8 +254,20 @@ fi
 #   * a dead pin  - a `uses:` ref that resolves to no commit at all (a re-pointed
 #                   SHA that does not exist). Unlockable until re-pointed.
 #
+# A third cause shares the identical symptom and is reported separately as
+# B-ACTOR: GitHub refusing the *actor* outright ("Actor is not allowed to
+# trigger Actions workflows"). It is decided before any workflow file is read,
+# so it is invisible to every file-based check, and it is the cause of the
+# app-authored failures this sweep previously could not explain.
+#
 # Branch-scoped failures (a run on a feature branch) are not this repository's
 # default-branch health and are skipped rather than reported.
+if [ "${#actor_refused[@]}" -gt 0 ]; then
+  n_actor=${#actor_refused[@]}
+  first=${actor_refused[0]}
+  emit B-ACTOR HIGH "ERR-SEC-006: $n_actor active workflow(s) refused at startup because GitHub does not allow the triggering actor to run Actions (run-page annotation: 'Actor is not allowed to trigger Actions workflows'); latest: ${first%%$'\t'*} triggered by ${first#*$'\t'} → OWNER/SETTINGS: permit this app to trigger workflows in the org or repository Actions policy. This is not a YAML or lockfile fault and no file change can fix it."
+fi
+
 [ "${#sf_list[@]}" -gt 0 ] && diagnose_startup_failures
 
 
