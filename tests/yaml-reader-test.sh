@@ -37,6 +37,28 @@ fail=0
 ok() { echo "  ok   $1"; pass=$((pass + 1)); }
 bad() { echo "  FAIL $1"; fail=$((fail + 1)); }
 
+# ── Firing fixture (gate-faking shape 3): forced parser kind, binary absent ─
+# Selecting a parser that is not installed must be an instrument failure —
+# exit 2, with a message — never an empty parse. nickel is the realistic
+# case: it sits mid-chain, so an environment that selects or forces it
+# without the binary must refuse rather than read the document as empty.
+# This block needs no ambient parser, so it runs BEFORE the no-parser SKIP.
+printf 'name: force\non: [push]\njobs:\n  build:\n    runs-on: ubuntu-latest\n' > "$TMP/force.yml"
+if ! command -v nickel >/dev/null 2>&1; then
+  out="$(bash -c "YAML_PARSER_KIND=nickel; . '$ROOT/scripts/lib/yaml.sh'; yaml_to_json '$TMP/force.yml'" 2>&1)"
+  rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q 'nickel was selected but is not installed'; then
+    ok "forced nickel kind without the binary is exit 2 and says so"
+  else
+    bad "forced nickel kind without the binary: rc=$rc out=[$out]"
+  fi
+fi
+if [ "$fail" -ne 0 ]; then
+  # A failure here must not be erased by the SKIP that follows it.
+  echo "FAIL: pre-skip fixtures failed; not skipping"
+  exit 1
+fi
+
 if [ "$(bash -c ". '$ROOT/scripts/lib/yaml.sh'; yaml_parser_kind")" = "none" ]; then
   echo "SKIP: no YAML parser available in this environment"
   exit 0

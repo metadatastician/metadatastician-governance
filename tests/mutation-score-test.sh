@@ -76,7 +76,7 @@ bad() { echo "  FAIL $1"; fail=$((fail + 1)); }
 # ── instrument check ───────────────────────────────────────────────────────
 kind="$(bash -c ". '$ROOT/scripts/lib/yaml.sh'; yaml_parser_kind")"
 if [ "$kind" = "none" ]; then
-  echo "mutation-score-test: no YAML parser available (tried yq, ruby, python3+pyyaml)" >&2
+  echo "mutation-score-test: no YAML parser available (tried yq, ruby, nickel, python3+pyyaml)" >&2
   echo "mutation-score-test: NO CHECK WAS PERFORMED — no mutant was evaluated, so there is no score" >&2
   exit 2
 fi

@@ -242,18 +242,18 @@ drifted a long way from the tree:
 | 23
 | 10
 | 12
-| **370**
+| **412**
 
 | Current tree, with the temporary `zz-probe-actions-lock.yml` present
 | 24
 | 11
 | 12
-| 458
+| 500
 |===
 
 The probe is a throwaway instrument (88 comment lines of its own) and is not part
-of the migration surface, so **370 is the number the #1021 proof has to
-preserve**; the 458 figure is recorded only so that whoever runs the census while
+of the migration surface, so **412 is the number the #1021 proof has to
+preserve**; the 500 figure is recorded only so that whoever runs the census while
 the probe still exists is not confused by the difference. The drift from 173 is
 fully accounted for, and every line of it is commentary rather than conversion:
 this repository's workflow comments grew substantially as the CI gates and the
@@ -265,6 +265,14 @@ contributed 0 comment lines — was removed, and `ci-health-sweep.yml` was edite
 comment-length-neutrally (40 lines before and after) precisely so that a
 factual correction to one date would not move this table. Nothing was converted,
 and the census still converts nothing.
+
+The two current-tree rows are re-measured on the tree that merges this record
+with #46 (merged as `4d4ec04e2b`), which re-pinned `codeql-action` off the
+estate-blocked v4.38.1 SHA and documented the provenance in-file:
+`codeql.yml` grew from 7 to 37 comment lines and `oikosbot.yml` from 7 to 19.
+Measured before #46 landed, the same rows read 370 / 458; the difference is
+exactly #46's 42 annotation lines — commentary, not conversion, and accounted
+for here rather than left for the next reader to re-derive from a stale table.
 --
 * The census converts nothing. `yq -i` and every other blind rewrite stay
   forbidden here until #1021 lands.
@@ -272,5 +280,5 @@ and the census still converts nothing.
 Migration point, so the step is booked rather than remembered: when #1023 rules
 scope and #1021/#1022 have landed, the work here is *step 5 for the twelve
 estate-authored YAML files and step 6 for the ten workflows, if ruled in*, with
-the census output as the work list and the comment count (370) as the acceptance
+the census output as the work list and the comment count (412) as the acceptance
 measure.
