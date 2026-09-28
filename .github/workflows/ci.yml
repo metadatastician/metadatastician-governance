@@ -67,8 +67,9 @@ jobs:
           # Rule 3 of the Tooling Version Integrity Policy: a gate must be able
           # to show the work actually ran. Print the tools and versions first,
           # so a green run cannot mean "the runner never did anything".
-          printf 'yq:      %s\n' "$(yq --version 2>/dev/null | head -1 || echo 'ABSENT (gates fall back to ruby/python)')"
+          printf 'yq:      %s\n' "$(yq --version 2>/dev/null | head -1 || echo 'ABSENT (gates fall back to ruby/nickel/python)')"
           printf 'ruby:    %s\n' "$(ruby --version 2>/dev/null | head -1 || echo 'ABSENT')"
+          printf 'nickel:  %s\n' "$(nickel --version 2>/dev/null | head -1 || echo 'ABSENT')"
           printf 'jq:      %s\n' "$(jq --version 2>/dev/null || echo ABSENT)"
           printf 'python3: %s\n' "$(python3 --version 2>/dev/null || echo ABSENT)"
           printf 'gh:      %s\n' "$(gh --version 2>/dev/null | head -1 || echo ABSENT)"
