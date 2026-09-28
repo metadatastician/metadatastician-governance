@@ -24,6 +24,17 @@ on:
         default: 'true'
         type: choice
         options: ['true', 'false']
+      enable_lockfix_prs:
+        description: 'EXPLICIT owner opt-in: permit lock-only cross-repo PRs (never enabled on schedule)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      limit:
+        description: 'Small test sweep: maximum number of repositories (0 = all)'
+        required: false
+        default: '0'
+        type: string
       owner:
         description: 'Owner to sweep'
         required: false
@@ -77,8 +88,12 @@ jobs:
           # manual dispatch defaults to dry-run for safety.
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || inputs.dry_run }}
           MAX_BURN_PRS: '15'
+          MAX_LOCKFIX_PRS: '15'
+          LIMIT: ${{ inputs.limit || '0' }}
+          ENABLE_LOCKFIX_PRS: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_lockfix_prs || 'false' }}
           ISSUE_REPO: metadatastician-governance
           CI_HEALTH_DENYLIST: ''   # No denylist for metadatastician estate
         run: |
           chmod +x scripts/ci-health/*.sh
+          gh extension install github/gh-actions-lock --pin v0.1.6
           ./scripts/ci-health/sweep.sh

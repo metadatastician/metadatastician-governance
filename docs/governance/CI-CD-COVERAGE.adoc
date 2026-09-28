@@ -867,7 +867,28 @@ something else must notice the silence.
 `metadatastician`, so the two detectors are complementary in scope but not in
 output shape. They should agree on it, so a drift reported by one is actionable
 in the other's report.
-. *Remediation cannot be dispatched from here.* Write access from the authoring
-environment is confined to this repository, so the other repositories' drifted
-locks cannot be repaired directly. The sweep's B-LOCKFILE class is therefore
-report-only, by design, and the report is the deliverable.
+. *Remediation requires an owner-controlled Actions run.* The authoring
+  installation cannot write to other estate repositories. B-LOCKFIX proposals
+  are computed by the sweep in Actions using the organisation PAT; live PRs
+  remain disabled unless the owner explicitly opts in after a dry run.
+
+== Metadatastician fleet lock repair (B-LOCKFIX)
+
+The CI-health sweep now proposes lock-only repair in its dry-run summary: API
+workflow mirror, parser-first lock-sync and pin checks, canonical `gh
+ actions-lock --no-migrate-local-actions`, a byte-for-byte YAML comparison, and
+the proposed lock diff. It can create idempotent capped cross-repo PRs only
+when an owner explicitly dispatches with both `dry_run=false` and
+`enable_lockfix_prs=true`. Scheduled runs never enable B-LOCKFIX mutations.
+The PR body includes the exact drifted refs and failed run IDs. The run requires
+the Actions PAT; missing token or API/parser failure exits 2, not green.
+
+Report-only: B-BADPIN requires a human to choose the real commit matching the
+version comment; B-ACTOR is an owner Actions-settings refusal, not a repository
+fault (Settings -> Actions; no repository change applies). Generator changes to
+workflow YAML are standards#981 and are reported with the diff, never applied.
+Re-arm: after owner review of a dry-run diff on main, dispatch with the explicit
+live switch for lock-only cases. For YAML-changing cases, resolve the action
+version with the repo owner first. For B-ACTOR, permit the triggering app in
+org/repo Actions policy and trigger a fresh run; never alter workflow files to
+work around an actor refusal.

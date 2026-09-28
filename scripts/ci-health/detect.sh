@@ -60,7 +60,7 @@ fi
 # cause; a failure with no attributable cause is still reported, aggregated, so
 # the class can never be silently dropped.
 diagnose_startup_failures() {
-  local tmp drift_out dead_out path br p content n_unexplained=0
+  local tmp drift_out dead_out path br p content n_unexplained=0 drift_status pin_status
   local paths=() drift_rows=() dead_pins=()
   tmp=$(mktemp -d) || die_api "cannot create a work directory for startup diagnosis"
   mkdir -p "$tmp/.github/workflows"
@@ -68,6 +68,7 @@ diagnose_startup_failures() {
   for entry in "${sf_list[@]}"; do
     path=${entry%%$'\t'*}
     br=${entry#*$'\t'}
+    br=${br%%$'\t'*}
     if [ -n "$br" ] && [ "$br" != "$default_branch" ]; then
       echo "NOTE $R $path startup_failure on $br (branch-scoped, not default-branch health)" >&2
       continue
@@ -106,14 +107,20 @@ diagnose_startup_failures() {
   # both collapse to "nothing to report here" below, and the unexplained-failure
   # aggregate is what keeps a 2 from being read as a clean bill of health.
   if drift_out=$("$HERE/../check-lock-sync.sh" "$tmp" 2>&1); then
-    drift_out=""
+    drift_status=0
+  else
+    drift_status=$?
+  fi
+  if [ "$drift_status" -eq 2 ]; then
+    rm -rf "$tmp"
+    die_api "lock-sync check did not run: $drift_out"
   fi
 
   local -A seen_drift=()
   while IFS=$'\t' read -r path reason; do
     [ -z "$path" ] && continue
     seen_drift["$path"]=1
-    emit B-LOCKFILE HIGH "ERR-SEC-004: $path $reason → regenerate actions.lock in the same commit as the ref change (gh actions-lock --no-migrate-local-actions; review the diff)"
+    emit B-LOCKFILE HIGH "ERR-SEC-004: $path $reason; failed run(s): $(printf '%s\n' "${sf_list[@]}" | awk -F '\t' -v p="$path" '$1==p {print $3}' | paste -sd, -) → regenerate actions.lock in the same commit as the ref change (gh actions-lock --no-migrate-local-actions; review the diff)"
   done < <(printf '%s\n' "$drift_out" | awk '
     /^FAIL / { p = $2; next }
     /^[[:space:]]+(refs missing from the lockfile:|stale lockfile entries:|stale lockfile entry: no such workflow file|no dependencies record|malformed dependency key|dependency has no resolvable commit|the recorded commit disagrees)/ {
@@ -124,7 +131,13 @@ diagnose_startup_failures() {
   # A pin that resolves to no commit at all cannot be locked, so the lock can
   # never be brought back into sync until the workflow is re-pointed.
   if dead_out=$("$HERE/../check-lock-pins.sh" "$tmp" 2>&1); then
-    dead_out=""
+    pin_status=0
+  else
+    pin_status=$?
+  fi
+  if [ "$pin_status" -eq 2 ]; then
+    rm -rf "$tmp"
+    die_api "pin check did not run: $dead_out"
   fi
   while IFS= read -r line; do
     case "$line" in
@@ -207,7 +220,7 @@ while IFS= read -r workflow_id; do
       actor_refused+=("$wf_path"$'\t'"$actor")
       ;;
     *)
-      sf_list+=("$wf_path"$'\t'"$wf_branch")
+      sf_list+=("$wf_path"$'\t'"$wf_branch"$'\t'"$run_id")
       ;;
     esac
   fi
