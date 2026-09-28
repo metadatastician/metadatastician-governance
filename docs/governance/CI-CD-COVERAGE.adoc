@@ -9,8 +9,26 @@ https://github.com/hyperpolymath/standards/blob/main/CICD-WORKFLOW-CATALOG.md[CI
 Workflow Catalog]; the catalogue's instruction is to *call* reusable workflows
 from `hyperpolymath/standards` and *copy* only the non-reusable ones.
 
-Measured 2026-09-28. "Starts" means the run was created and executed; a
-`startup_failure` is not a red check, it is a check that never existed.
+Measured 2026-09-28, after pull request #42 merged. "Starts" means the run was
+created and executed; a `startup_failure` is not a red check, it is a check that
+never existed. Every run id, count and annotation quoted below was read from the
+API or the run page on that date; nothing here is inferred from a green square.
+
+== The state of play in four sentences
+
+PR #42 merged at 2026-09-28T00:09:34Z as commit `7276ec80e5`, and *every* run
+that push created on `main` started — seven of them, zero `startup_failure`,
+which is the first time since 2026-09-24 that this repository's default branch
+has had runnable CI. **Cause 1 is now confirmed fixed by observation, not
+argument:** the sweep's next scheduled run (`36379748097`, 04:55:58 UTC) started,
+checked out *through the lockfile* — the step is literally named
+`Run actions/checkout@v7.0.1` and it succeeded — ran for 17 minutes 54 seconds,
+and then failed inside the sweep script for a reason that has nothing to do with
+the lockfile. Cause 2 (an actor GitHub refuses) is *not* fixed and cannot be
+fixed from inside this repository: 34 of the last 100 runs are refusals of the
+coding-agent app, and the annotation names the actor, not a file. Runs on `main`
+now start and then fail for ordinary reasons, and each failure is recorded below
+with what is and is not established about it.
 
 == The one structural rule in this repository
 
@@ -21,8 +39,9 @@ at run creation. A ref the lock does not record under that workflow's own path
 makes GitHub refuse the run — `startup_failure`, zero jobs, no log, nothing in
 REST or GraphQL. So a workflow whose job is to *detect* that fault cannot depend
 on the mechanism it detects. `ci.yml`, `lock-sync-gate.yml`,
-`estate-sweep-watchdog.yml`, `labels.yml` and `label-triage.yml` therefore check
-out by calling `git` inside a `run:` step. Do not add a `uses:` to them.
+`estate-sweep-watchdog.yml`, `labels.yml`, `label-triage.yml` and the temporary
+`zz-probe-actions-lock.yml` therefore check out by calling `git` inside a `run:`
+step. Do not add a `uses:` to them.
 
 == What runs
 
@@ -32,63 +51,246 @@ out by calling `git` inside a `run:` step. Do not add a `uses:` to them.
 
 | `ci.yml`
 | PR, push, dispatch
-| yes
+| yes on `main`
 | The repository's own gates: the shell test suite, the workflow-startability
-  check, licence headers, and an informational KYAML census.
+check, licence headers, and an informational KYAML census. Run `36361141993`
+started on `main` and failed at the *Licence headers* step; see below.
 
 | `lock-sync-gate.yml`
 | PR, push, dispatch
-| yes
-| Two questions, both about the fault that killed the sweep: does
-  `actions.lock` agree with the workflow YAML in both directions, and does every
-  pin it records actually resolve.
+| yes on `main`
+| Two questions, both about the fault that killed the sweep: does `actions.lock`
+agree with the workflow YAML in both directions, and does every pin it records
+actually resolve. Run `36361142025` on `main`: *success*.
 
 | `estate-sweep-watchdog.yml`
 | daily 07:17 UTC, dispatch
-| yes
-| Watches the watcher: opens a rolling issue when the CI-Health Sweep is stale
-  or its latest run failed to start. A monitor that can be switched off by the
-  class it monitors is not a monitor.
+| **yes — ran and worked**
+| Watches the watcher: opens a rolling issue when the sweep's last *success* is
+older than the 26h freshness horizon, or when its latest run failed to start,
+and closes that issue when the sweep is fresh and successful again. Added by
+#42; its first scheduled run `36393416167` (07:45:39 UTC) **succeeded** and
+opened issue #43, correctly measuring "last successful sweep:
+2026-09-20T04:48:25Z" against a latest run of `failure`. The detector worked.
+Its *wording* did not, and that is fixed on this branch — see below.
 
 | `ci-health-sweep.yml`
 | daily 04:47 UTC, dispatch
-| *was failing*
+| **yes — repair confirmed by observation**
 | The estate's failure-class detector and remediation dispatcher. Refused at
-  startup on every scheduled run from 2026-09-24 (35957324128, 36096095736,
-  36218967182, 36295476367). Cause: its checkout ref was pinned to a SHA while
-  the lock still recorded `@v7.0.1`. Fixed in this change by restoring the ref
-  the lock records; see `docs/governance/CHANGE-PROCEDURE.adoc` for the record.
+startup on every scheduled run from 2026-09-24 (`35957324128`, `36096095736`,
+`36218967182`, `36295476367`). #42 restored the ref the lock records, and the
+next scheduled run `36379748097` (04:55:58 UTC) **started**: step 2
+`Run actions/checkout@v7.0.1` succeeded, which is the lockfile mechanism working
+end to end, and the job ran 04:56:01 → 05:13:55. It then failed at step 3,
+inside the sweep script — a different problem, diagnosed below. The commit that
+caused the original outage is identified below too, and it is not what anyone
+assumed.
 
 | `codeql.yml`
 | PR, push main, cron
-| yes
-| CodeQL, pinned to `github/codeql-action` at the estate-approved 4.38.0.
+| yes on `main`
+| CodeQL, pinned to `github/codeql-action` at the estate-approved 4.38.0. Run
+`36361141951` started and failed inside *Perform CodeQL Analysis*.
 
 | `secret-scanner.yml`
 | PR, push main
-| yes
-| Calls the estate secret scanner reusable with `secrets: inherit`.
+| yes on `main`
+| Calls the estate secret scanner reusable with `secrets: inherit`. Run
+`36361142459`: *success*.
 
 | `scorecard.yml`
 | cron, push main, dispatch
-| yes
-| Calls the estate Scorecard reusable (OpenSSF Scorecard).
+| starts, but zero jobs
+| Calls the estate Scorecard reusable. Run `36361142305` failed with **zero
+jobs** and no annotation; its pin was off upstream's default branch and has been
+re-pointed — see the failure table below.
 
 | `oikosbot.yml`
 | PR
-| yes
-| Sustainability analysis.
+| yes on `main`
+| Sustainability analysis. Run `36361141992` started and failed inside *Run
+OikosBot analysis*.
 
 | `labels.yml`, `label-triage.yml`
 | push main / issues
 | yes
 | Label management. Uses-free for the same structural reason as `ci.yml`.
 
+| `zz-probe-actions-lock.yml`
+| PR, dispatch
+| *refused while an agent pushes it*
+| TEMPORARY, read-only. Exists to answer one question — can a GitHub runner
+obtain and run `gh actions-lock`? — which cannot be answered from the authoring
+environment. Delete it once the answer is recorded.
+
 | `pages.yml`
-| dispatch
-| disabled
-| GitHub Pages. Currently `disabled_manually`; see the gaps below.
+| —
+| *removed*
+| GitHub Pages. Removed on 2026-09-28 by a recorded decision; see below.
 |===
+
+== What is red on `main` right now, and what is actually known about it
+
+Starting is not passing. These are the four failures from the merge push
+(`7276ec80e5`, 2026-09-28T00:09), with the step that failed and an honest
+statement of how far the diagnosis got. Job logs cannot be downloaded from the
+authoring environment — `results-receiver.actions.githubusercontent.com` and the
+blob host it redirects to both fail the TLS handshake there — so anything beyond
+step names is labelled as a hypothesis.
+
+[cols="2,2,2,4",options="header"]
+|===
+| Run | Failed at | Status | What is known
+
+| CI-Health Sweep `36379748097`
+| step 3, *Run CI-health sweep*
+| **mechanism established; one link unverified**
+| The good news first: steps 1-2 succeeded, so the run *started* and resolved
+`actions/checkout@v7.0.1` through the lockfile. Cause 1 is closed. The job then
+ran 17m54s (04:56:01 → 05:13:55) and failed in `scripts/ci-health/sweep.sh`.
++
+The runtime is the discriminator, and it rules out the obvious guess: a dead or
+missing `METADATASTICIAN_DISPATCH_PAT` would have killed the script at its first
+command (`gh repo list`, unguarded under `set -euo pipefail`) in seconds, not
+after eighteen minutes. What the script does have, immediately after its
+per-repository detection loop, is an honest-refusal guard: `if [ -s "$errors" ]`
+then *"Detection was incomplete for N repo(s); refusing remediation and a false
+health report"* and `exit 2`. That guard sits **before** the tracking-issue
+upsert, which is independently confirmed by issue #30 still showing its
+2026-09-20 report.
++
+The mechanism was then reproduced, not merely inferred:
+`OWNER=metadatastician scripts/ci-health/detect.sh @organization` run with a
+token that lacks `admin:org` emits exactly
+`@organization<TAB>E-INSTRUMENT<TAB>CRITICAL<TAB>Actions-permissions query
+failed; allow-list health is unknown` and exits 2 — which is precisely what
+populates `$errors` and trips the guard.
++
+*The one unverified link:* that the sweep's PAT specifically lacks `admin:org`.
+The repository secrets list answers 403 to this token and the job log is
+unreachable, so it cannot be confirmed from here. What is established is that a
+token without `admin:org` produces this exact failure on every run, that the
+workflow's own comment already documents the requirement ("PAT needs classic
+`repo` + `workflow` + `admin:org` … A repo-only token cannot change the
+inherited allow-list"), and that the sweep behaved *correctly* — it refused to
+publish a health report it could not fully compute rather than emitting a
+confident partial one.
+
+| CI `36361141993`
+| step 6, *Licence headers*
+| **fixed here**
+| Established, and reproducible offline: `.github/workflows/pages.yml` was the
+one tracked workflow with no `SPDX-License-Identifier` in its first five lines.
+Steps 4 (shell test suite) and 5 (every workflow parses, has jobs, and can
+start) both *succeeded* in that run, which is also the proof that a real YAML
+parser exists on the runner image — `check-lock-sync.sh` can only reach exit 0
+through `scripts/lib/yaml.sh`. Removing `pages.yml` clears it.
+
+| CodeQL `36361141951`
+| *Perform CodeQL Analysis*
+| not established
+| Checkout, initialise and both post-steps succeeded, so this is an analysis
+failure and not a startup or pinning one. The `actions` extractor is the only
+matrix entry. The log is not retrievable here; no claim is made about the cause.
+
+| OikosBot `36361141992`
+| *Run OikosBot analysis*, then *Upload SARIF*
+| not established
+| The upload failed because the analysis produced no `results.sarif`; the root is
+in the analysis step, which runs `ghcr.io/hyperpolymath/oikos:latest` by
+`docker run`. The `:latest` tag is *deliberate* and its reason is recorded in the
+file: "The former `ghcr.io/hyperpolymath/oikos:v2.0.0` pin referenced a tag that
+never existed on the package." So the unpinned tag is an upstream packaging gap
+— there is no published version tag to pin to — not an oversight here, and it is
+not this repository's to fix by guessing a ref. Recorded, not repaired. The log
+is not retrievable here, so no claim is made about why the analysis itself
+failed.
+
+| Scorecard `36361142305`
+| zero jobs, no annotation
+| **re-pointed, hypothesis labelled**
+| The callee file exists at the old pin `892497fe…`, its permissions are a subset
+of the caller's grant, and its own action pins resolve — so none of the usual
+zero-job causes applies. What *is* measured: `892497fe…` is not an ancestor of
+`hyperpolymath/standards`' default branch (`compare/892497fe…main` →
+`status=diverged`, 416 ahead / 6 behind), while `secret-scanner.yml`'s pin
+`092dedad…` is (`status=ahead`, 0 behind) and its run in the same push succeeded.
+`scorecard.yml` is therefore re-pointed at `2ccc38ea…` — the upstream commit this
+repository already declares adopted in `ADOPTION-AND-DEVIATIONS.adoc`, and an
+ancestor of upstream `main`. Supporting context, and labelled as such: the
+`gh actions-lock` README states that "locked actions must have a branch that the
+commit being locked exists within", and treats a pin "whose recorded commit is no
+longer reachable upstream" as an error needing `--accept-moved`. So
+reachability-from-a-branch is an invariant this toolchain already enforces on
+*lock entries*; whether GitHub enforces the same invariant when resolving a
+cross-repo reusable call is not documented anywhere I could reach, and that gap
+is why this stays a hypothesis. This is the leading hypothesis, not an established
+cause; the next run of this workflow on `main` falsifies or confirms it, and if it
+still fails with zero jobs this row must be corrected rather than left implying a
+fix. The permission axis is separately cleared: the callee at the new pin
+requests `contents: read` plus job-level `security-events: write` and
+`id-token: write`, and this caller grants all three plus `actions: read`, so the
+re-point cannot introduce the `standards#451` zero-job class.
+|===
+
+== A detector that measures correctly and describes it wrongly
+
+The watchdog's first run is a small case study, and it is recorded here because
+the failure mode is the same one that made the original outage take four days to
+diagnose: *a correct measurement wrapped in an incorrect sentence.*
+
+What it measured at 07:45:39 was right. The sweep's last **success** was
+2026-09-20T04:48:25Z, more than 26 hours old, so the rolling estate report on
+issue #30 is stale; the latest run concluded `failure`. It fired on staleness of
+the last success — not on a startup failure, because there wasn't one.
+
+What it then said was wrong. It titled issue #43 "🩺 CI-Health: sweep is not
+running", headed the body "the sweep itself is not running", and spent the whole
+body explaining the two causes of `startup_failure`. The sweep *had* run, for
+eighteen minutes, and had checked out successfully through the very lockfile the
+body told the reader to go and suspect. Anyone following that issue would have
+re-derived the wrong diagnosis a second time.
+
+A second defect was found while reading the code to fix the first: the body
+promised "This issue closes itself on the next healthy sweep run", and **no code
+path ever closed it**. The healthy branch printed "sweep is healthy; nothing to
+report" and exited before any issue handling, so #43 would have stayed open
+forever after the sweep recovered. A promise a workflow does not keep is worse
+than no promise, because it teaches people to ignore the workflow.
+
+Both are fixed on this branch, with the trigger calibration deliberately left
+alone — *when* it fires was right, only *what it says* and *whether it cleans up*
+were wrong:
+
+* The title becomes "🩺 CI-Health: estate report is stale", which is true in
+  every case that fires it (no success ever, success too old, or a run that
+  failed to start) and asserts no cause.
+* The observed state is derived from the measurement: *did not start*, *started
+  and then failed*, *succeeded but the success is older than the horizon*, or
+  *no run history at all*.
+* The guidance branches on that state. A run that started is told to compare
+  `started_at` and `completed_at` — minutes means the script ran, seconds means
+  it died at its first command — and is pointed at the honest-refusal guard and
+  the token-scope requirement first. The two `startup_failure` causes are shown
+  only when the run actually failed to start.
+* The healthy path now closes the issue, requiring both a fresh success *and*
+  that the newest run is that success; a fresh success with a newer failure on
+  top of it is reported as "the published report is one run behind" rather than
+  silently closed.
+* Because the title is also the search key for the rolling issue, the previous
+  wording is still searched for and any issue found under it is renamed, so
+  changing the title cannot orphan #43 and open a duplicate every run.
+
+Verification, since a run pushed by the authoring agent is refused (cause 2) and
+cannot test it: the step's script was extracted from the YAML *with a parser*,
+checked with `bash -n`, then executed against the live API and against four
+synthetic run histories — `startup_failure`, fresh `success`, `failure` over an
+older success, and no runs at all. All four exit 0 and take the correct branch,
+with issue mutations intercepted. That run also caught a bug the author
+introduced while rewriting the file (a jq path, `[.workflow_runs][0]` where
+`[.workflow_runs[]][0]` was meant), which is the argument for executing the
+extracted script rather than reading it.
 
 == Gap analysis against the catalogue's minimum
 
@@ -100,155 +302,502 @@ stands:
 | Catalogue item | State here | Note
 
 | `governance.yml` (GATE)
-| *absent*
-| The upstream reusable is `governance-reusable.yml`, callable as
-  `uses: hyperpolymath/standards/.github/workflows/governance-reusable.yml@<sha>`.
-  Adding a caller adds a `uses:` and therefore a lock entry, and the lock cannot
-  currently be regenerated here — see the blocker below. Sequence this *after*
-  the lock tool is available again, or the caller itself becomes the next
-  startup_failure.
+| *absent, deferred with a measured plan*
+| The upstream reusable is `governance-reusable.yml`, present at the adopted pin
+`2ccc38ea…` (50321 bytes) and callable as
+`uses: hyperpolymath/standards/.github/workflows/governance-reusable.yml@<sha>`.
+Its `workflow_call` surface, read verbatim at that pin: one optional input
+`runs-on` (type string, default `ubuntu-latest`), **no secrets**, and
+workflow-level `permissions: contents: read` — so a caller granting
+`contents: read` is sufficient and cannot over-grant. Adding a caller adds a
+`uses:` and therefore a lock entry, and the lock cannot currently be regenerated
+here — see the blocker below. Sequence this *after* the lock tool is proven on a
+runner, or the caller itself becomes the next `startup_failure`.
 
 | `codeql.yml` (GATE)
 | *derived*
 | Present as a local workflow rather than a call to `codeql-reusable.yml`. The
-  pins are SHA-pinned and pinned to the estate-approved version, so this is a
-  divergence in form, not in scanning coverage.
+pins are SHA-pinned and pinned to the estate-approved version, so this is a
+divergence in form, not in scanning coverage.
 
 | `scorecard.yml` (GATE)
-| *present*
-| Calls the upstream reusable.
+| *present, re-pointed*
+| Calls the upstream reusable at the adopted pin. Red on `main` until the next
+run confirms the re-point; see the failure table.
 
 | `hypatia-scan.yml` (GATE)
-| *absent*
-| Same `uses:`/lock-entry sequencing problem as `governance.yml`.
+| *absent, deferred with a measured plan*
+| Same `uses:`/lock-entry sequencing problem as `governance.yml`, plus one trap
+worth writing down now so the eventual change is mechanical: at the adopted pin
+the callee declares workflow-level `permissions: contents: read,
+security-events: write`, and *a called workflow may never request more than its
+caller grants*. This is not a hypothetical — it is a closed estate-wide incident,
+`hyperpolymath/standards#451`, titled "Reusable-workflow wrappers startup-fail
+estate-wide: callers grant narrower permissions than the reusable's jobs
+request". A caller added here must therefore grant `security-events: write`, or
+the run dies at startup with zero jobs and no log, which is precisely the failure
+mode this document has spent four days chasing. Its `workflow_call` surface at
+that pin: **no inputs and no secrets** — `on: workflow_call:` and nothing under
+it — so the call takes no arguments.
 
 | `secret-scanner.yml` (GATE)
-| *present*
-| Calls the upstream reusable.
+| *present, green*
+| Calls the upstream reusable with `secrets: inherit`; run `36361142459`
+succeeded on `main`.
 
 | `main-estate-audit.yml` (GATE)
 | *absent*
 | Belongs to the estate-wide audit; this repository is a governance home, not an
-  audited project. Revisit if it gains a code surface.
+audited project. Revisit if it gains a code surface.
 
 | `security-gate-pr-target.yml` (GATE)
 | *absent*
 | Non-reusable, so it is a copy rather than a call, and it needs fork-PR
-  hardening that this repository (whose PRs come from branches of this
-  repository) does not yet exercise.
+hardening that this repository (whose PRs come from branches of this repository)
+does not yet exercise.
 
 | `check-suite-monitor.yml` (CHECK)
 | *covered differently*
 | `estate-sweep-watchdog.yml` watches the sweep's own run history, which is the
-  failure mode that actually bit: a `startup_failure` creates no red square, and
-  a required check that never reports reads as absent rather than failing.
+failure mode that actually bit: a `startup_failure` creates no red square, and a
+required check that never reports reads as absent rather than failing.
 |===
 
-== Two causes of `startup_failure`, and why they were confused
+== Two causes of `startup_failure`, and the measurement that separates them
 
 `startup_failure` is a single symptom with two completely different causes.
-Neither is visible in the REST API; both were read off the run page annotations
-on 2026-09-28, and both are now distinguished by `scripts/ci-health/detect.sh`.
+Neither is visible in the REST API; both were read off run-page annotations, and
+both are distinguished by `scripts/ci-health/detect.sh`.
 
 [cols="2,3,3",options="header"]
 |===
 | | Cause 1 — an invalid lockfile | Cause 2 — an actor GitHub refuses
 
 | Annotation
-| "Invalid lockfile: `.github/workflows/actions.lock#L1` — The lockfile could
-  not be validated. Regenerate it by running `gh actions-lock`."
+| "Invalid lockfile: `.github/workflows/actions.lock#L1` — The lockfile could not
+be validated. Regenerate it by running `gh actions-lock`."
 | "Actor is not allowed to trigger Actions workflows. Workflow file:
-  `.github/workflows/labels.yml`."
+`.github/workflows/ci.yml`."
 
-| Verified on
+| Read on
 | run `36295476367` (2026-09-27 04:50, event `schedule`, actor `hyperpolymath`)
-| run `36359814257` (2026-09-27 23:46, event `push`, actor
-  `arena-ai-coding-agent[bot]`)
+| run `36360950443` (2026-09-28 00:06, event `pull_request` / `synchronize`,
+actor `arena-ai-coding-agent[bot]`, head `55e0ae2b6d`), read again on 2026-09-28
 
-| Evidence it is this and not the other
-| The failures start exactly at the commit that pinned a ref the lock did not
-  record, and every one of them is on the default branch with a human/app-level
-  actor.
-| The affected workflow carried **no `uses:` at all** and its lock entry was
-  `[]`; the same refusal occurs in repositories carrying **no lockfile at all**.
+| Population, last 100 runs
+| exactly **4**, and all four are the CI-Health Sweep's scheduled runs of
+2026-09-24 … 2026-09-27. Zero since #42 merged.
+| exactly **34**, and every one of them is a repository workflow file: Secret
+Scanner 6, OikosBot 6, CodeQL Security Analysis 6, Labels 3, Lock Sync Gate 2,
+CI 2, and `zz-probe-*` 9 — those nine being five *earlier* probes
+(`zz-probe-lockmatch`, `-lockmismatch`, `-nolock`, `-noactions`, `-verify`)
+pushed on branch `arena/01a0e520-…` on 2026-09-27, all refused. The probe written
+for this task, `zz-probe-actions-lock.yml`, has therefore never run at all: it is
+not registered as a workflow and has no run history.
 
 | What fixes it
-| Make the workflow's refs and the lock agree — this change does that for the
-  sweep.
+| Make the workflow's refs and the lock agree. #42 did that for the sweep; the
+lock-sync gate now keeps it that way.
 | An owner settings change: permit the app to trigger workflows in the org or
-  repository Actions policy. *No repository change can fix it* — it is settled
-  before any file is read.
+repository Actions policy. *No repository change can fix it* — it is settled
+before any file is read.
 |===
+
+=== The commit that caused the four-day outage, and why it is a trap
+
+Cause 1 is now traced to a specific commit rather than described as "drift", and
+the mechanism is worth more than the incident.
+
+PR #40 (`5d9e8b8088`, merged 2026-09-23T11:10:18Z, "Fix/deadlock script exit
+code") made exactly one change to `ci-health-sweep.yml`:
+
+----
+-      - uses: actions/checkout@v7.0.1
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+----
+
+That is a *hardening* change — mutable tag to immutable SHA, the estate's own
+pinning policy, applied by hand. It did not touch `actions.lock`, which at that
+commit recorded, for that workflow path, the entry
+`'actions/checkout@v7.0.1'` with dependency
+`ref: 'v7.0.1'`, `commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'`.
+
+Read those two facts together and the trap is visible: the SHA the YAML was
+changed to name is *byte-for-byte the commit the lock already resolved `v7.0.1`
+to*. The pin was not merely equivalent in intent, it was identical in effect —
+same action, same commit, same owner, a strictly better supply-chain posture —
+and it killed the workflow at startup for four consecutive days, because the lock
+matches on the **ref string recorded under that workflow's path**, not on the
+resolved commit. `3d3c42e5…` is not a ref the lock records for
+`ci-health-sweep.yml`, so GitHub refused the run: zero jobs, no log, no
+annotation, nothing in REST.
+
+The next scheduled sweep ran at 04:47 UTC on 2026-09-24, eleven hours after that
+merge, and was refused. So were the next three. The detector the estate built to
+find CI failures was itself the failure, and a `startup_failure` produces no red
+square for a required check to hang on — which is why nothing on any dashboard
+went red, and why the incident was found by a human reading a stale board.
+
+Three consequences, each of which is a rule rather than a story:
+
+. *Doing the right thing to a pin is not safe on its own.* Any tag-to-SHA
+conversion, Dependabot bump or manual re-pin must be accompanied by a lock
+regeneration, or it is an outage wearing a security improvement's clothes. Where
+the lock cannot be regenerated — as here, and as in every sandboxed agent session
+in this estate — the safe move is the counter-intuitive one: leave the readable
+tag the lock records, and record the deviation. That is what #42 did, and it is
+why `ci-health-sweep.yml` still says `@v7.0.1`.
+. *A gate must check both directions.* "Does every ref in the YAML appear in the
+lock?" catches this. So does "does every lock entry still have a ref?", which
+catches the orphaned entry a fix leaves behind. `scripts/check-lock-sync.sh`
+checks both, and `tests/mutation-score-test.sh` proves each direction is load-
+bearing by mutating the gate until it stops checking.
+. *The watcher needs a watcher.* `estate-sweep-watchdog.yml`, added by #42,
+exists precisely because a `startup_failure` is invisible to every mechanism that
+reads check conclusions. Its first scheduled run is 07:17 UTC on 2026-09-28 and,
+like the sweep's repair, it is unproven until it happens.
+
+The separating measurement is worth stating precisely, because it is what makes
+the two causes non-negotiable rather than merely plausible. In the last 100 runs
+the coding-agent app has exactly six successes, and all six are `dynamic`-event
+runs (`PR #42`, GitHub-managed CodeQL analysis) — *not one repository workflow
+file has ever started for that actor*. Meanwhile the same app-adjacent content
+starts fine for a human actor. The sharpest instance is a three-minute window on
+2026-09-28, on one pull request, with one lockfile:
+
+* 00:03 — commit `3c6fd1c64e` was pushed through the GitHub web UI by the
+  repository owner (a Copilot Autofix suggestion). Actor `hyperpolymath`. All
+  five repository workflows *started*: runs `36360781724` (Lock Sync Gate,
+  success), `36360781734` (CI, failure inside the job), `36360781742` (CodeQL),
+  `36360781695` (OikosBot), `36360782233` (Secret Scanner, success).
+* 00:06 — commit `55e0ae2b6d` was pushed by the coding-agent app. Actor
+  `arena-ai-coding-agent[bot]`. All five were refused: `36360948079`,
+  `36360948616`, `36360949176`, `36360949721`, `36360950443`.
+
+`compare/3c6fd1c64e…55e0ae2b6d` touches `ci.yml`, `lock-sync-gate.yml`,
+`estate-sweep-watchdog.yml`, `detect.sh`, `sweep.sh` and this document. It does
+**not** touch `actions.lock`, `codeql.yml`, `oikosbot.yml`, `secret-scanner.yml`
+or `labels.yml`. So for CodeQL, OikosBot and Secret Scanner the file content was
+byte-identical three minutes apart, the lockfile was identical, and the only
+variable that changed was the actor. That is as close to a controlled experiment
+as an incident leaves behind.
 
 The consequence is worth stating plainly, because it cost this estate real time:
 a sweep that classifies every `startup_failure` as lock drift will report a
 settings problem as a YAML problem forever. Files can be read, regenerated and
 re-checked indefinitely and the board will not move, which is exactly how this
-class survived four rolling issues. `detect.sh` now splits them by actor —
-`B-LOCKFILE`/`B-BADPIN` for the file-readable causes, `B-ACTOR` for the
-settings cause — and `sweep.sh` reports `B-ACTOR` as owner-actionable rather
-than attempting a repair.
+class survived four rolling issues. `detect.sh` splits them by actor —
+`B-LOCKFILE`/`B-BADPIN` for the file-readable causes, `B-ACTOR` for the settings
+cause — and `sweep.sh` reports `B-ACTOR` as owner-actionable rather than
+attempting a repair.
 
-*Standing request to the owner:* the org or repository Actions policy must
-permit the coding-agent app to trigger workflows, or every push made by an agent
-— including the ones that carry fixes — produces a wall of `startup_failure` and
-no runnable CI. Until then, no branch in this repository can be verified by a
-green run, and verification has to be static (schema-valid lock, gates green
-locally, run ids cited).
+*Standing request to the owner, unchanged and still blocking:* the org or
+repository Actions policy must permit the coding-agent app to trigger workflows,
+or every push made by an agent — including the ones that carry fixes — produces a
+wall of `startup_failure` and no runnable CI. Until then no branch in this
+repository can be verified by a green run of its own, and verification has to be
+static (schema-valid lock, gates green locally, run ids cited) plus whatever the
+owner's own triggers produce on `main`.
+
+One cheap workaround exists and is worth knowing: a refused run can be re-run
+from the UI by a permitted actor, and a re-run executes as the person who
+clicked, using the workflow file from that run's commit. That is how the
+`gh actions-lock` probe below can be answered without merging anything.
+
+== Signed commits, and the only merge path this branch has
+
+The estate requires signed commits on the default branch, and the commits
+authored in an agent session are not GPG-signed — the authoring environment has
+no signing key. What the live rules actually are, measured rather than assumed:
+
+[cols="2,4",options="header"]
+|===
+| Question | Measured answer
+
+| Which ruleset applies to `main`?
+| `EstateBranching`, id `18225024`, **source type Organization**, enforcement
+`active`, condition `ref_name: ~DEFAULT_BRANCH`, `current_user_can_bypass:
+"never"`, bypass list empty. Its rules: `deletion`, `required_signatures`,
+`pull_request`, `code_scanning` (CodeQL, `security_alerts_threshold:
+high_or_higher`), `copilot_code_review`.
+
+| Is `.github/rulesets/Optimus-Branch.json` that ruleset?
+| **No.** It is a declared copy in this repository, and it is not among the
+rulesets that apply here (`GET /repos/…/rulesets` returns Branch-Floor, Estate
+Baseline, EstateBranching, EstateTagging, Tag-Floor, Immutable-Tags). It also
+disagrees with the one in force: it declares two required approvals and no
+`allowed_merge_methods`, while `EstateBranching` declares
+`required_approving_review_count: 0` and `allowed_merge_methods: ["squash",
+"rebase"]`. The file is left alone — changing a ruleset is an owner action and
+this token has `admin: false` — but the drift is recorded here so nobody reasons
+from the wrong document.
+
+| Are merge commits allowed?
+| No. `allowed_merge_methods` is `["squash", "rebase"]`.
+
+| Did #42 satisfy `required_signatures` with unsigned commits?
+| Yes, and the mechanism is visible in the commit itself. `7276ec80e5` has ONE
+parent (`5d9e8b8088`), so it is a *squash*; `commit.verification` is
+`verified: true, reason: "valid"`, committer `GitHub <noreply@github.com>`, with
+a signature payload. GitHub signs the commit it creates for a squash or
+rebase-merge. The unsigned agent commits (`55e0ae2b6d` and its predecessors:
+`verification.reason: "unsigned"`) never became commits on `main`, so the rule
+never saw them.
+
+| Therefore, what is the merge path?
+| **Squash-merge through the GitHub UI.** It produces exactly one new commit on
+`main`, authored by GitHub and signed by GitHub, which is what
+`required_signatures` checks. Neither alternative works: `git push` of unsigned
+commits to `main` is refused by the same rule, and a *rebase* merge replays the
+original unsigned commits onto `main`, so it would be refused too — even though
+the ruleset lists `rebase` as an allowed method. Re-signing the branch is
+possible in principle and pointless in practice: it needs a key the agent
+environment does not have, and the squash already satisfies the rule.
+|===
+
+The practical instruction for anyone finishing an agent branch here: merge it
+with *Squash and merge*, do not rebase it, and do not try to push it to `main`
+directly. Nothing about this needs a repository change, which is why it is
+recorded as a procedure rather than a fix.
 
 == Blockers, with re-arm triggers
 
 *The lock cannot be regenerated in the authoring environment.* `gh actions-lock`
-is the estate's canonical generator, and it is not obtainable there: the release
-assets are unreachable and the extension's binary is missing. That matters more
-than convenience — the lock is the file whose hand-editing caused the four-day
-sweep outage, and hand-building a replacement has already been shown to produce
-a file GitHub rejects wholesale (every workflow in the repository then fails at
-startup, including uses-free ones). The interim answer here is to change nothing
-in the lock and instead make the workflow agree with it.
+is the estate's canonical generator and it is not obtainable there. Measured
+2026-09-28, raw:
 
-**Re-arm trigger:** when `gh actions-lock` runs in the authoring environment,
-regenerate the lock for the whole repository, then re-pin every workflow to full
-SHAs and re-run the gates. Until then, any workflow whose refs are not in the
-lock stays out of it rather than being hand-written in.
+----
+$ gh extension install github/gh-actions-lock
+failed to download asset linux-amd64: Get
+"https://release-assets.githubusercontent.com/github-production-release-asset/…": EOF
 
-*Five workflows are unlisted in the lock* (`codeql.yml`, `oikosbot.yml`,
-`pages.yml`, `scorecard.yml`, `secret-scanner.yml`). Measured: GitHub starts
-unlisted workflows — `codeql.yml` and the Scorecard reusable call both run on the
-default branch while absent from the lock — so this is a coverage gap, not a
-fault. `scripts/check-lock-sync.sh` reports it as a NOTE and does not fail.
-Closing it needs the same re-arm trigger.
+$ gh actions-lock --version
+failed to run extension: fork/exec
+/home/user/.local/share/gh/extensions/gh-actions-lock/gh-actions-lock: no such file or directory
+
+$ curl -sSL -o /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to
+release-assets.githubusercontent.com:443
+----
+
+The diagnosis this supports is narrower and more useful than "the tool is
+missing": the extension's *metadata* is reachable — `GET
+/repos/github/gh-actions-lock/releases/latest` answers `v0.1.6`, published
+2026-07-28, asset `linux-amd64`, 11268280 bytes — and its *source tree* clones
+fine (`git ls-remote https://github.com/github/gh-actions-lock` succeeds). Only
+the release-asset CDN host fails, and `proxy.golang.org` fails the same way, so
+building from source is not a route either (`go` is absent regardless). This is a
+sandbox egress restriction on one class of host, not a missing tool and not a
+missing licence. It matters more than convenience: the lock is the file whose
+hand-editing caused the four-day sweep outage, and a hand-built replacement has
+already been shown to produce a file GitHub rejects wholesale — every workflow
+in the repository then fails at startup, including uses-free ones. The interim
+answer is unchanged: modify nothing in the lock, and make the workflows agree
+with it.
+
+*The runner-side answer is pending, and it is one click away.*
+`.github/workflows/zz-probe-actions-lock.yml` is a temporary, uses-free,
+read-only probe that installs the extension on a GitHub runner, prints
+`gh extension list`, the real `--help` flag surface, the result of
+`gh actions-lock --verify` (which is `--rescan --no-fix`, so it writes nothing),
+and then — in a throwaway copy under `/tmp`, never in the repository — what a
+full regeneration would change. It checksums the real lock before and after and
+prints `git status --porcelain` as the backstop, so "read-only" is demonstrated
+rather than asserted. While an agent pushes it, it is refused like everything
+else; the answer comes from a permitted actor either re-running the refused run
+or dispatching the workflow once it is on the default branch. Its `--verify` semantics were read out of the
+extension's source at `v0.1.6` (`cmd/gh-actions-lock/run.go:93`: "Full
+re-verification of every pin (equivalent to `--rescan --no-fix`)") and its exit
+contract from `cmd/gh-actions-lock/root.go:30` (0 clean, 1 blocking findings,
+2 tool failure — bad flag, IO error, network failure, malformed lockfile), so the
+probe's output will be interpretable when it lands.
+
+Reading that source also surfaced something this repository did not know it was
+duplicating. The tool already ships the exact check `scripts/check-lock-sync.sh`
+hand-rolls: `--verify-local` performs "a zero-network static check: every action
+ref in scanned workflows must have a corresponding lockfile entry. No auth, no
+resolution, no reachability — ideal for pre-commit hooks." Two consequences,
+both worth an owner decision rather than a unilateral change here. First, this
+repository's gate is not redundant busywork — it reads *job-level* refs that
+`--verify-local` is documented to miss, and it checks the reverse direction
+(lock entries with no ref), so it is a strict superset for this repository's
+shape. Second, once the tool is obtainable on a runner, `--verify-local` becomes
+the cheapest possible cross-check to run alongside the hand-rolled gate, and any
+disagreement between them is itself a finding.
+
+**Re-arm trigger:** when `gh actions-lock` is proven to run on a runner,
+regenerate the lock in a scratch copy, take *only* `actions.lock` into the
+repository, prove with `scripts/check-lock-pins.sh` that no pin moved and with
+`git diff --name-only` that nothing else did, then re-pin every workflow to full
+SHAs and re-run the gates. The scratch-copy discipline is not caution for its own
+sake: fix mode is documented to rewrite workflows as well as the lock, and
+`metadatastician/burble#224` measured it appending duplicate management banners
+to 27 files and de-pinning bare SHAs back to mutable tags. Until then, any
+workflow whose refs are not in the lock stays out of it rather than being
+hand-written in, and `ci-health-sweep.yml` keeps the readable tag its lock entry
+records.
+
+*Four workflows are unlisted in the lock* (`codeql.yml`, `oikosbot.yml`,
+`scorecard.yml`, `secret-scanner.yml` — `pages.yml` was the fifth and has been
+removed; the temporary probe is also unlisted and is not counted as a gap because
+it is about to be deleted). Measured again on the merge push: all four started on
+`main` while absent from the lock — Secret Scanner succeeded, CodeQL and OikosBot
+ran jobs and failed inside them, Scorecard created zero jobs for a reason
+unrelated to the lock (its callee pin, above). So this is a coverage gap, not a
+fault, and `scripts/check-lock-sync.sh` reports it as a NOTE and does not fail.
+That calibration is deliberate and is now *tested* rather than merely asserted:
+code mutant C5 in `tests/mutation-score-test.sh` replaces the gate's
+`unlisted+=("$key")` with `fail_block "$key"` — the NOTE becomes a FAIL — and the
+corpus kills it. It is killed only by a *benign* input (B5, a well-formed
+workflow that simply is not listed), which is the concrete argument for why that
+suite carries sixteen mutants that must NOT fire: a corpus of nothing but broken
+fixtures would score a false-alarm mutant as undetected and let the gate drift
+into crying wolf. Closing the gap itself needs the same re-arm trigger as the
+lock.
 
 *`gh actions-lock`'s extractor has a known blind spot.* It reads step-level
 `uses:` only, so job-level reusable-workflow calls are invisible to it. This is
-recorded upstream (hyperpolymath/burble#224 §3) and is exactly the class of
-error the estate's YAML-POLICY rule Y-1 exists to end. The checkers in this
-repository read job-level `uses:` correctly and are tested on it
-(`tests/yaml-reader-test.sh`), so the gap is in the generator, not in the gate.
+measured in both directions and recorded in `metadatastician/burble#224` ("fix(ci):
+resynchronise actions.lock and gate it against recurrence", closed) under *The
+tool's blind spot*: a job-level `standards@d135b05b` pin that disagreed with the
+YAML's `@4d104d32` killed `mirror.yml` at startup yet appeared in neither
+`--no-fix` nor `--verify-local` output and was not repaired by fix mode; and a
+job-level ref that *was* correctly present in the lock was then reported `stale` —
+"no uses: in this workflow references it" — about a ref literally on line 144 of
+that file. The mechanism for the asymmetry is the step-level parse count: zero
+step-level refs skips the stale check, nine step-level refs makes the unmatched
+job-level entry look orphaned. This is exactly the class of error the estate's
+YAML-POLICY rule Y-1 exists to end. The checkers in this repository read
+job-level `uses:` correctly and are tested on it (`tests/yaml-reader-test.sh`, and
+input mutant S14 plus the property test's job-level generator in the newer
+suites), so the gap is in the generator, not in the gate. Its own README adds a
+second limitation that matters for the deferred callers: "Workflows in the
+lockfile cannot use local-path actions, these will be skipped for onboarding."
 
-*`pages.yml` is disabled.* Its two pins were unresolvable (HTTP 422 — no such
-commit) and have been re-pointed at real commits, but the workflow remains
-disabled until Pages is deliberately enabled for this repository. It is not
-currently a documentation site.
+*Regenerating the lock rewrites workflows, and the rewrites must be discarded.*
+Also measured in `metadatastician/burble#224`: `gh actions-lock` fix mode appended
+duplicate management banners to 27 workflow files (one reached three banners) and
+de-pinned two bare SHAs back to mutable tags (`dtolnay/rust-toolchain@02cb101e…` →
+`@v1`). So Task 3's acceptance condition — regenerate, then confirm `git diff`
+touches *only* `actions.lock` — is not a formality, it is the guard against a
+tool that will happily un-pin this repository's workflows while fixing its lock.
+When the tool becomes runnable here, regenerate in a scratch copy, take only the
+lockfile, and re-run `scripts/check-lock-pins.sh` to prove no pin moved.
+
+*The `check-workflows-parse.sh` gate has no parser in the authoring
+environment.* That upstream script accepts `yq` or `ruby` and nothing else, and
+the sandbox has neither (`yq` cannot be downloaded — same blocked host; `ruby`
+cannot be installed — no root). Locally it therefore exits 1 with
+`::error::no YAML parser available (yq or ruby)`, which is an *instrument
+absence*, not a workflow defect. The properties it checks are verified here by a
+separate PyYAML pass and reported as supplementary, and on the runner the gate
+itself is green (run `36361141993`, step 5). `tests/mutation-score-test.sh`
+states this honestly rather than papering over it: the parse family is reported
+as NOT SCORED and excluded from both denominators where its instrument is
+missing.
+
+*`pages.yml` was removed — decision recorded.* The question was whether to
+re-enable GitHub Pages for this repository or delete the workflow. Measured
+facts, all on 2026-09-28: Pages *is* switched on at the repository level
+(`GET /repos/…/pages` → `build_type: "workflow"`, `source: main /`,
+`public: true`, `https_enforced: true`); it has never produced anything
+(`status: null`, `GET /repos/…/pages/builds` → `[]`); the URL it advertises
+(`https://metadatastician.github.io/metadatastician-governance/`) answers
+`404 — There isn't a GitHub Pages site here`; the workflow itself is
+`disabled_manually` (workflow id `316174537`); and even if it ran, it would
+publish a stub. That last point is precise rather than rhetorical: the workflow
+copies `README.md` to `src/index.md` if the former exists, and this repository
+has `README.adoc` and no `src/` and no `README.md`, so the `elif` branch fires
+and writes a single line, `# ${GITHUB_REPOSITORY}` — literally
+`# metadatastician/metadatastician-governance` — as the whole site. Two further
+defects settled it: the build is handed a base URL of
+`https://hyperpolymath.github.io/${GITHUB_REPOSITORY#*/}` (line 43), which is the
+wrong organisation and would make every absolute link in the published site point
+at another estate's host, while Pages itself advertises
+`metadatastician.github.io`; and it was the only tracked workflow with no SPDX
+header, which is what turned the CI licence gate red on `main`. Enabling Pages is
+an owner settings action this token cannot perform (`admin: false`), and enabling
+it to publish a stub whose links point at another organisation is worse than not
+publishing.
+
+**Decision:** remove the workflow. **Owner action recorded, not performed:**
+either switch the Pages feature off so the repository stops advertising a dead
+URL, or commission a real site (content, correct base URL, and a lock entry) and
+restore the workflow. **Re-arm trigger:** restore from history — the file as
+removed is at `git show 7276ec80e5:.github/workflows/pages.yml` — only together
+with content to publish and a lock that can be regenerated.
 
 == Elsewhere: what belongs to the estate, not to this repository
 
+. *Permit the coding-agent app to trigger workflows.* This is the single
+blocking item, it is a settings change, and until it happens no agent branch in
+any repository in this estate can produce a run. Everything else in this document
+is second.
+. *Give the sweep's PAT `admin:org`.* This is the reason the sweep now fails,
+and it is a token-scope change, not a code change. `detect.sh @organization`
+reads the org Actions policy and emits `E-INSTRUMENT` (exit 2) on a 403; that
+populates `sweep.sh`'s error set and trips its honest-refusal guard, so the
+sweep runs for eighteen minutes and then declines to publish a report it could
+not complete — on every run, deterministically, until the scope is granted.
+`.github/workflows/ci-health-sweep.yml` already documents the requirement
+(classic `repo` + `workflow` + `admin:org`); what is missing is a PAT that meets
+it. Until then the estate report on issue #30 cannot refresh, and the watchdog
+will keep #43 open — correctly.
 . *Make the lock tool obtainable.* Every repository in the estate is one
-  Dependabot bump away from the same outage, and the sanctioned cure
-  (`gh actions-lock`) cannot be run from a sandboxed environment. A pinned,
-  checksum-verified install path would convert a recurring estate-wide incident
-  into a one-command fix.
+Dependabot bump away from the same outage, and the sanctioned cure
+(`gh actions-lock`) cannot be run from a sandboxed environment. A pinned,
+checksum-verified install path — or the extension vendored where a runner can
+reach it — would convert a recurring estate-wide incident into a one-command fix.
 . *Publish the lock check as a callable reusable.* `hyperpolymath/standards` has
-  `scripts/check-lockfile-drift.sh` and `lock-selfcheck.yml`, but neither is
-  exposed as `workflow_call`, so each repository that wants the check must copy
-  it. The parser-first checkers in this repository are written to the estate's
-  Y-1 rule; if they are worth having, they belong upstream, callable, where
-  thirty repositories can inherit them instead of thirty copies drifting apart.
-. *Two sweeps, one estate.* `standards` already runs an estate-wide
-  `lockfile-drift-detect.yml` (Tuesdays 07:20 UTC) over `hyperpolymath`, while
-  this repository's sweep covers `metadatastician`. They should agree on the
-  output shape so a drift reported by one is actionable in the other's report.
+`scripts/check-lockfile-drift.sh` (6827 bytes) and `lock-selfcheck.yml` (2717
+bytes), and neither is exposed as `workflow_call` — `lock-selfcheck.yml` triggers
+on `pull_request`, `push: main` and `workflow_dispatch` only — so each repository
+that wants the check must copy it. The parser-first checkers in this repository
+are written to the estate's Y-1 rule; if they are worth having, they belong
+upstream, callable, where thirty repositories can inherit them instead of thirty
+copies drifting apart. Note that `gh actions-lock --verify-local` is already a
+zero-network, no-auth static check of exactly the forward direction, so the
+cheapest upstream reusable may be a thin wrapper around it plus the reverse
+direction (lock entries whose ref has gone) and job-level `uses:` support, which
+is the part the tool is documented to miss.
+. *Decide what a caller pins.* This repository's two working callers pin
+different commits of `hyperpolymath/standards` (`092dedad…` for the secret
+scanner, `2ccc38ea…` for Scorecard after the change above), and the adopted
+upstream pin declared in `ADOPTION-AND-DEVIATIONS.adoc` is the latter. Whether
+callers track the adopted pin or the newest ancestor of upstream `main` is an
+owner decision under `CHANGE-PROCEDURE.adoc`; the Scorecard failure above is what
+happens when the answer is "neither, and off-branch".
+. *The estate-wide drift detector cannot see this repository at all.* This is the
+most consequential gap in this document and it is measured, not inferred.
+`hyperpolymath/standards` runs `lockfile-drift-detect.yml` on `cron: '20 7 * * 2'`
+(Tuesday 07:20 UTC, after Dependabot's weekly window) and its header states the
+fault is self-reinflicting — "60 of 60 sampled repos carry both a lockfile and a
+Dependabot config, so the whole estate re-acquires this on every action bump".
+But its enumeration step is `gh repo list hyperpolymath --limit 1000
+--no-archived`, and every subsequent probe hardcodes
+`repos/hyperpolymath/$r/...`. This repository is in the `metadatastician`
+organisation, so it is outside that sweep's universe and always will be, however
+many Tuesdays pass. That is why a four-day, four-run outage on this repository's
+default branch produced no estate-level signal: the detector that exists to
+produce exactly that signal is scoped to one organisation.
+
+Widening it to both orgs is a small change in a repository this token cannot
+write to, and it should be made — but it is worth being precise that it would
+*not* have caught this incident, because the cadence has its own blind window.
+The drift was introduced at 2026-09-23T11:10Z (a Wednesday) and repaired at
+2026-09-28T00:09Z (a Monday). The Tuesday 07:20 runs either side of that interval
+are 2026-09-22 and 2026-09-29: the first predates the fault, the second postdates
+the fix. A weekly detector, at any scope, samples this outage zero times. The
+only mechanism that ran inside the window was this repository's own *daily*
+04:47 sweep — which was the thing that died. That is the strongest available
+argument for `estate-sweep-watchdog.yml`, and it is an argument about cadence and
+recursion, not about org scope: a detector cannot report its own absence, so
+something else must notice the silence.
+. *Two sweeps, one estate.* This repository's own `ci-health-sweep.yml` covers
+`metadatastician`, so the two detectors are complementary in scope but not in
+output shape. They should agree on it, so a drift reported by one is actionable
+in the other's report.
 . *Remediation cannot be dispatched from here.* Write access from the authoring
-  environment is confined to this repository, so the other repositories' drifted
-  locks cannot be repaired directly. The sweep's B-LOCKFILE class is therefore
-  report-only, by design, and the report is the deliverable.
+environment is confined to this repository, so the other repositories' drifted
+locks cannot be repaired directly. The sweep's B-LOCKFILE class is therefore
+report-only, by design, and the report is the deliverable.

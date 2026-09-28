@@ -20,7 +20,137 @@ Language/toolchain profiles, release requirements, MAA profiles, and implementat
 
 == Deviations
 
-No substantive deviation is authorised in this initial draft. Existing repositories may predate current metadata and terminology conventions; that is migration debt, not an implicit deviation. Each exception requires scope, authority, reason, containment, evidence status, and review date.
+No substantive deviation is *authorised* in this initial draft. Existing repositories may predate current metadata and terminology conventions; that is migration debt, not an implicit deviation. Each exception requires scope, authority, reason, containment, evidence status, and review date.
+
+That sentence is about authorisation, and it stays true. What follows is a record
+of three deviations that *exist in merged history or in the working tree* as at
+2026-09-28. Recording a fact is not authorising it: each is stated with the six
+fields this section requires, and each is marked for the owner to ratify,
+reverse, or rule on under `CHANGE-PROCEDURE.adoc`. They are written down because
+an unrecorded deviation is indistinguishable from an unnoticed one, and two of
+the three were found only by reading the merged diff against the rule the
+repository states about itself.
+
+=== D-A — `actions.lock` was edited without `gh actions-lock`
+
+*Scope.* One file, `.github/workflows/actions.lock`, in PR #42 (squash-merged as
+`7276ec80e5`, 2026-09-28T00:09:34Z). The measured diff adds three entries and
+re-sorts two: `ci.yml`, `estate-sweep-watchdog.yml` and `lock-sync-gate.yml` gain
+empty lists (`[]`), and `labels.yml` / `label-triage.yml` move to alphabetical
+order. No `dependencies:` record was added, removed or altered, so no claim about
+a resolved commit, ref or `owner_id` was fabricated by hand.
+
+*Authority.* None exists as a ruling. The change is in merged history because the
+repository owner squash-merged the PR that carried it, which is acceptance in fact
+and not a decision about this rule. The file's own header says "Do not edit by
+hand; run `gh actions-lock` to update", and this document quotes the estate rule
+as "`actions.lock` — must never be hand-edited or reformatted". Both were
+contradicted.
+
+*Reason.* The sanctioned tool could not be run: `gh extension install
+github/gh-actions-lock` fails in the authoring environment on the release-asset
+CDN host (raw output and diagnosis in `CI-CD-COVERAGE.adoc`). The three workflows
+in question carry no `uses:` at all, by design, so their entries assert nothing
+that requires resolution. Leaving them unlisted instead would have made the
+lock-sync gate's "not onboarded" NOTE ambiguous between *has refs nobody locked*
+(the real gap: `codeql.yml`, `oikosbot.yml`, `scorecard.yml`,
+`secret-scanner.yml`) and *has no refs to lock* (nothing to do).
+
+*Containment.* An empty entry is falsifiable offline and is falsified by this
+repository's own gate: `scripts/check-lock-sync.sh` reads the YAML with a parser
+and fails (exit 1) if a listed path disagrees with the workflow in either
+direction, so a wrong `[]` cannot survive a run. `tests/mutation-score-test.sh`
+mutates that gate until it stops checking and proves the corpus notices. The
+dangerous half of the lockfile — dependency records asserting reachability — was
+not touched and must not be: that claim cannot be verified without the tool.
+
+*Evidence status.* Tested locally (gate exit 0; `git status` shows the lock
+untouched by any subsequent work) and observed on a runner: the merge push ran
+`Lock Sync Gate` to success (`36361142025`) and every uses-free workflow started.
+Not audited.
+
+*Review date / re-arm.* On the first run of `zz-probe-actions-lock.yml` that
+proves the tool works on a runner. At that point regenerate the whole lock with
+the tool, take only `actions.lock` from the result, and confirm the three entries
+survive as the tool writes them — which either ratifies this deviation
+retrospectively or shows the hand-made shape was wrong. If the owner prefers,
+revert the three entries now: the gate reports them as NOTEs, not failures, so
+nothing breaks.
+
+=== D-B — `ci-health-sweep.yml` carries a mutable tag, not a SHA pin
+
+*Scope.* One line: `- uses: actions/checkout@v7.0.1`. Every other workflow here
+is SHA-pinned.
+
+*Authority.* Same as D-A: merged in #42 by the owner, no separate ruling.
+
+*Reason.* This is the inverse of the incident that D-A sits next to, and the two
+must be read together. PR #40 (`5d9e8b8088`, 2026-09-23) *hardened* this line
+from `@v7.0.1` to `@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1` — the very
+commit the lock already resolved that tag to — without regenerating the lock.
+Because the lock matches on the ref string recorded under a workflow's own path,
+GitHub refused to start the run: four consecutive scheduled sweeps
+(2026-09-24 … 2026-09-27) produced `startup_failure` with zero jobs. #42
+restored the tag the lock records. The deviation is therefore *deliberate*: with
+the lock unregenerable, the pinned form is the broken one and the mutable form is
+the one that runs.
+
+*Containment.* The tag is recorded in the lock with its resolved commit
+(`sha1-3d3c42e5…`) and `owner_id`, and `scripts/check-lock-pins.sh` verifies that
+record; the exposure is the ordinary mutable-tag risk (the ref could move
+upstream), not an unverified pin. The gate that keeps YAML and lock in agreement
+runs on every PR and push.
+
+*Evidence status.* **Proven.** The next scheduled sweep ran as
+`36379748097` at 2026-09-28T04:55:58Z and *started*: step 2,
+`Run actions/checkout@v7.0.1`, succeeded — the lockfile resolving this exact
+mutable tag to its recorded commit, end to end, on a runner — and the job ran
+17m54s. Gates also exit 0 locally and `Lock Sync Gate` succeeded on `main`
+(`36361142025`). The sweep still fails, at step 3, for an unrelated reason
+(its PAT's scope; see `CI-CD-COVERAGE.adoc`), which does not bear on this
+deviation: the ref resolved, and that is the whole claim D-B makes.
+
+*Review date / re-arm.* Immediately after the lock tool is proven runnable:
+regenerate, then convert this line to the full SHA and confirm
+`check-lock-pins.sh` still passes. This deviation should be the first one closed,
+because it is the one that is actively costing pinning coverage.
+
+=== D-C — `oikosbot.yml` runs an unpinned container image
+
+*Scope.* One line: `ghcr.io/hyperpolymath/oikos:latest`, invoked by `docker run`.
+Present since at least 2026-07-28 (`2143f7e74d`), i.e. two months, and not
+introduced by #42.
+
+*Authority.* None. This one is the clearest case of an unnoticed deviation
+rather than a chosen one: it survived because no gate in this repository reads
+image references inside `run:` blocks — the pinning gates read YAML `uses:`
+values, and a `docker run` string is opaque to them.
+
+*Reason.* The file records it: "The former `ghcr.io/hyperpolymath/oikos:v2.0.0`
+pin referenced a tag that never existed on the package." That claim could not be
+independently verified from here — `GET
+/orgs/hyperpolymath/packages/container/oikos/versions` answers 404 to this token —
+so it is reported as recorded, not as established. If it is true, there is
+currently no version tag to pin to and the deviation is upstream's to fix.
+
+*Containment.* Weak, and stated as weak: the job runs with
+`permissions: security-events: write, contents: read`, `--user "$(id -u):$(id -g)"`,
+a read-only-mounted workspace by convention rather than enforcement, and its SARIF
+upload is a separate step. A moved `latest` would run arbitrary code as the job
+user with write access to security events. This run is *also* the one failing on
+`main` (`36361141992`, failed inside *Run OikosBot analysis*), so the deviation
+and the outage overlap and neither is diagnosed.
+
+*Evidence status.* Assumed. No gate covers it and no test asserts anything about
+it.
+
+*Review date / re-arm.* Two triggers, whichever comes first: the upstream package
+publishes a real version tag, at which point pin it by digest; or a gate is added
+that reads container image references in `run:` blocks and requires a digest. The
+second is the better fix, because it closes the blind spot rather than the
+instance — and it should be proposed under `CHANGE-PROCEDURE.adoc`, not added
+unilaterally, since it changes what every workflow in this repository must
+satisfy.
 
 == Sequenced upstream adoptions (in force upstream, not yet actionable here)
 
@@ -89,13 +219,57 @@ step that eventually runs is mechanical:
 * `scripts/kyaml-census.sh` — read-only census. It reports which files belong to
   step 5 (`estate-authored`) and step 6 (`bot-rewritten`: workflow YAML, which
   Dependabot and `gh actions-lock` write), which are tool-owned and excluded
-  (`actions.lock` — "must never be hand-edited or reformatted"), and how many
-  comment lines are at risk. That last number is the population the #1021 proof
-  has to preserve; at the time of writing it is 173.
+  (`actions.lock` — "must never be hand-edited or reformatted"; see deviation
+  D-A, which records that this rule was in fact broken in PR #42 and why), and
+  how many comment lines are at risk. That last number is the population the
+  #1021 proof has to preserve.
++
+--
+Re-measured 2026-09-28, because the figure this document carried (173) had
+drifted a long way from the tree:
+
+[cols="3,1,1,1,1",options="header"]
+|===
+| Census | Files | step 6 | step 5 | Comment lines
+
+| As recorded here until 2026-09-28
+| —
+| —
+| —
+| 173
+
+| Current tree, steady state (`pages.yml` removed, temporary probe deleted)
+| 23
+| 10
+| 12
+| **355**
+
+| Current tree, with the temporary `zz-probe-actions-lock.yml` present
+| 24
+| 11
+| 12
+| 443
+|===
+
+The probe is a throwaway instrument (88 comment lines of its own) and is not part
+of the migration surface, so **355 is the number the #1021 proof has to
+preserve**; the 443 figure is recorded only so that whoever runs the census while
+the probe still exists is not confused by the difference. The drift from 173 is
+fully accounted for, and every line of it is commentary rather than conversion:
+this repository's workflow comments grew substantially as the CI gates and the
+2026-09-28 incident were documented in-file (`scorecard.yml` now carries 41
+comment lines explaining one pin decision, `estate-sweep-watchdog.yml` grew from
+20 to 53 explaining what its first run taught us). `pages.yml` — which
+contributed 0 comment lines — was removed, and `ci-health-sweep.yml` was edited
+comment-length-neutrally (40 lines before and after) precisely so that a
+factual correction to one date would not move this table. Nothing was converted,
+and the census still converts nothing.
+--
 * The census converts nothing. `yq -i` and every other blind rewrite stay
   forbidden here until #1021 lands.
 
 Migration point, so the step is booked rather than remembered: when #1023 rules
 scope and #1021/#1022 have landed, the work here is *step 5 for the twelve
-estate-authored YAML files and step 6 for the workflows, if ruled in*, with the
-census output as the work list and the comment count as the acceptance measure.
+estate-authored YAML files and step 6 for the ten workflows, if ruled in*, with
+the census output as the work list and the comment count (355) as the acceptance
+measure.
