@@ -23,10 +23,18 @@ findings=$(mktemp)
 errors=$(mktemp)
 rep=$(mktemp)
 burned=0
-trap 'rm -f "$findings" "$errors" "$rep"' EXIT
+lockfixed=0
+lock_report=$(mktemp)
+[ -n "${GH_TOKEN:-}" ] || { echo "E-INSTRUMENT: GH_TOKEN absent; sweep cannot run" >&2; exit 2; }
+if ! gh api "users/$O" >/dev/null; then echo "E-INSTRUMENT: owner API unavailable" >&2; exit 2; fi
+trap 'rm -f "$findings" "$errors" "$rep" "$lock_report" "$lock_report.repos"' EXIT
 
 echo "::group::Enumerate owner repos (own, non-archived)"
-mapfile -t REPOS < <(gh repo list "$O" --source --no-archived --limit 1000 --json name --jq '.[].name' | sort)
+repo_json=$(gh repo list "$O" --source --no-archived --limit 1000 --json name) || { echo "E-INSTRUMENT: repo enumeration failed" >&2; exit 2; }
+mapfile -t REPOS < <(printf '%s' "$repo_json" | jq -r '.[].name' | sort)
+if [[ "${LIMIT:-0}" =~ ^[0-9]+$ ]] && [ "${LIMIT:-0}" -gt 0 ]; then
+  REPOS=("${REPOS[@]:0:$LIMIT}")
+fi
 echo "repos to scan: ${#REPOS[@]}  (dry_run=$DRY)"
 echo "::endgroup::"
 
@@ -68,7 +76,25 @@ while IFS=$'\t' read -r repo cls _sev _detail; do
     # owner with the exact settings route; do not attempt a code fix.
     echo "REPORT $repo/$cls: GitHub refuses this actor; owner must permit it in the org/repo Actions policy (no repo change applies)"
     ;;
-  B-LOCKFILE | B-BADPIN)
+  B-LOCKFILE)
+    if [ "$lockfixed" -lt "${MAX_LOCKFIX_PRS:-15}" ] && ! grep -qx "$repo" "$lock_report.repos" 2>/dev/null; then
+      echo "$repo" >>"$lock_report.repos"
+      details=$(awk -F '\t' -v r="$repo" '$1==r && $2=="B-LOCKFILE" {print $4}' "$findings")
+      # Independent safety switch: scheduled runs stay DRY even when D-BURN is live.
+      lock_dry=true
+      [ "$DRY" = false ] && [ "${ENABLE_LOCKFIX_PRS:-false}" = true ] && lock_dry=false
+      if out=$(OWNER="$O" "$HERE/lockfix.sh" "$repo" "$lock_dry" "$details" 2>&1); then
+        printf '%s\n' "$out" >>"$lock_report"
+        echo "$out"
+        [[ "$out" != *"FIXED $repo/B-LOCKFIX"* ]] || lockfixed=$((lockfixed+1))
+      else
+        printf 'E-INSTRUMENT %s/B-LOCKFIX: %s\n' "$repo" "$out" >>"$lock_report"
+        echo "$out" >&2
+        printf '%s\n' "$repo" >>"$errors"
+      fi
+    else echo "CAP $repo/B-LOCKFIX deferred" >>"$lock_report"; fi
+    ;;
+  B-BADPIN)
     # Diagnosed, not auto-applied: the cure is to regenerate actions.lock (or
     # re-point a dead pin) in the same commit as the ref change. Doing that
     # blind from a sweep would guess which side is stale - the estate has been
@@ -86,6 +112,8 @@ while IFS=$'\t' read -r repo cls _sev _detail; do
   esac
 done < <(sort -u "$findings")
 
+if [ -s "$errors" ]; then echo "E-INSTRUMENT: repair check failed; no complete report" >&2; exit 2; fi
+
 # Build report
 {
   echo "## $TITLE"
@@ -98,6 +126,12 @@ done < <(sort -u "$findings")
   echo "### 🟠 B — allow-list / lockfile drift / actor refusal / startup_failure"
   grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|ACTOR|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
   grep -qP '\tB-' "$findings" || echo "- _none_"
+  echo ""
+  echo "### B-LOCKFIX proposals and decisions"
+  echo "B-LOCKFIX is dry-run unless ENABLE_LOCKFIX_PRS=true is explicitly set. B-BADPIN is report-only. B-ACTOR requires owner settings (Settings → Actions); no repository change applies."
+  echo "\`\`\`text"
+  cat "$lock_report"
+  echo "\`\`\`"
   echo ""
   echo "### 🟡 D-BURN — push/PR double-trigger"
   grep -P '\tD-BURN\t' "$findings" | awk -F'\t' '{print "- "$1": "$4}' || true

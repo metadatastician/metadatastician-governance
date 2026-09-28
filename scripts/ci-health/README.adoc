@@ -99,3 +99,21 @@ scope. Repository scans cover runs, billing annotations, and workflow triggers.
 never reported as a healthy estate.
 * A complete finding-free sweep closes the rolling issue; a later real finding
 opens a new report.
+
+== B-LOCKFIX (opt-in lock-only repair)
+
+For B-LOCKFILE, the sweep mirrors workflows and actions.lock through the API
+without cloning or writing another repo. It runs both parser-first lock gates,
+then runs the canonical generator on the runner. It includes the proposed lock
+diff in the dry-run job summary. It will open at most `MAX_LOCKFIX_PRS` PRs only
+when `ENABLE_LOCKFIX_PRS=true` is explicitly supplied on a manual dispatch with
+`dry_run=false`; the daily schedule always leaves this class dry. PRs contain
+the detector's drifted refs and failed run IDs. The stable repair branch and
+existing open PR are reused. Workflow YAML changes are a standards#981 hazard:
+report the diff and refuse mutation. B-BADPIN remains report-only: deciding
+which commit matches a trailing version comment requires repository-owner review.
+B-ACTOR remains owner-settings-only (org/repo Settings -> Actions); no repository
+change applies. API, parser, generator and token failures are exit 2, not success.
+To prove in Actions: manually dispatch `dry_run=true`, `limit=3` after this
+workflow reaches main, review the diff summary, then separately opt in to live
+PRs. The authoring installation cannot dispatch this workflow (HTTP 403).
