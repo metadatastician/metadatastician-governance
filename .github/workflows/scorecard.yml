@@ -20,4 +20,44 @@ permissions:
 
 jobs:
   scorecard:
-    uses: hyperpolymath/standards/.github/workflows/scorecard-reusable.yml@892497fe373744874316710966b81ae6f0ea9e66
+    # Pinned to the upstream commit this repository declares adopted in
+    # docs/governance/ADOPTION-AND-DEVIATIONS.adoc (`2ccc38ea…`), which is an
+    # ancestor of hyperpolymath/standards' default branch.
+    #
+    # Why this line changed: the previous pin, `892497fe…`, is NOT an ancestor of
+    # upstream main — `GET /repos/hyperpolymath/standards/compare/892497fe…main`
+    # answers `status=diverged`, 416 ahead / 6 behind, i.e. six commits on the
+    # pinned line never landed. The run this produced on main (36361142305,
+    # 2026-09-28 00:09) failed with ZERO jobs, no annotation on the run page and
+    # nothing retrievable in REST. The contrast is measured, not inferred:
+    # `secret-scanner.yml` calls the same repository at `092dedad…`, which IS an
+    # ancestor of main (`status=ahead`, 0 behind), and its run 36361142459 in the
+    # same push succeeded.
+    #
+    # Honest status of that reading: the callee file exists at both pins, its
+    # permissions are a subset of what this caller grants at both pins, and its
+    # own action pins resolve at both — so "the pin is off the default branch" is
+    # the leading hypothesis and NOT an established cause, because the job log
+    # cannot be downloaded from the authoring environment (the results-receiver
+    # blob host is unreachable there). Falsification is cheap and observable: if
+    # the next run of this workflow on main still fails with zero jobs, the pin's
+    # branch membership was not the cause and this comment must be corrected
+    # rather than left to imply a fix that did not happen.
+    #
+    # Permission subset check, measured at the new pin so this re-point cannot
+    # introduce the failure class of hyperpolymath/standards#451 (a called
+    # workflow may never request more than its caller grants; the symptom is
+    # zero jobs at startup). scorecard-reusable.yml at 2ccc38ea… requests
+    # workflow-level `contents: read` and job-level `security-events: write` +
+    # `id-token: write`. This caller grants all three, plus `actions: read`,
+    # which the callee does not request. The grant is therefore a strict
+    # superset and is left wider than needed on purpose: it must also cover the
+    # callee at any pin the adopted-pin decision moves to, and a grant that is
+    # one permission short kills the run silently while an unused permission
+    # merely wastes scope.
+    #
+    # Re-arm trigger: when the adopted upstream pin in
+    # ADOPTION-AND-DEVIATIONS.adoc is moved (an owner decision under
+    # docs/governance/CHANGE-PROCEDURE.adoc), move this ref with it so the
+    # callers and the declared pin stay one fact.
+    uses: hyperpolymath/standards/.github/workflows/scorecard-reusable.yml@2ccc38eaaf8787034ed099e0b72c9ca8b85dc563

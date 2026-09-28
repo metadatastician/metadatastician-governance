@@ -85,17 +85,62 @@ three states that file defines and never collapsing the second into the first:
   tool versions so a green run cannot mean "the runner did nothing".
 
 | 9. Property-based
-| THIN
-| The fixtures are hand-written examples, not generated universes. No property
-  generator exists. The honest claim: several examples per declared defect
-  class, no quantified coverage of the input space.
+| REAL
+| `tests/ref-normalisation-property-test.sh`, added 2026-09-28. It *generates* a
+  corpus of `uses:` refs — owners with and without dots, repos with dashes, refs
+  as tags, full SHAs, short SHAs and branch names, refs with and without trailing
+  `@`, plus exclusion prefixes in both bare and `@ref` form — and asserts eight
+  properties of `scripts/lib/yaml.sh`'s `yaml_uses_in` over every generated
+  member, rather than over hand-picked examples. Randomness is seeded and the
+  seed is printed, so a failure reproduces; verified at exit 0 across seeds
+  1/99/12345/20260928 at corpus sizes 25/40/80.
++
+Two things make this REAL rather than a generator wearing the label. It carries
+three *negative controls* — deliberately broken readers — and fails (exit 1) if
+any of them is not caught, so "the property passed" cannot mean "the property was
+never tested". And it earned its keep immediately: writing it exposed two genuine
+bugs in the test's own reasoning that a hand-written fixture would not have
+found, one being that `RANDOM` drawn inside a command substitution does not
+advance the parent shell's sequence, so every array in the generator was silently
+picking the same index and the corpus was far narrower than it looked.
++
+Scope, stated so the claim is not over-read: the properties cover *ref
+normalisation in the reader*, not the whole input space of the gates. The
+hand-written fixtures in rows 1-8 are still the coverage for everything else.
 
 | 10. Mutation
-| THIN
-| Every gate ships a firing fixture that is a member of the class it detects,
-  and the suite requires it to fire — so a gate that stops detecting its own
-  class is red. These are input mutants, not code mutants, and there is no
-  mutation-score tool. Do not read this as a mutation-score claim.
+| REAL, with one declared hole
+| `tests/mutation-score-test.sh`, added 2026-09-28, does mutation scoring in the
+  textbook sense and in both directions. *Part A* mutates the **inputs**: 42
+  corpus members over the lock-sync, lock-pins and workflow-parse fixtures, of
+  which 26 must fire (a mutant that removes or inverts a defect the gate
+  documents) and 16 must NOT (benign variants — a well-formed workflow that is
+  merely unlisted, an entry that agrees, a pin that resolves). Detection 26/26,
+  specificity 16/16. *Part B* mutates the **gate code itself**: six single-line
+  mutations of `check-lock-sync.sh` and `check-lock-pins.sh`, each removing or
+  inverting a documented decision, each run against the whole Part A corpus and
+  killed only if some member's verdict changes. Code mutation score 6/6.
++
+The benign half is not padding and Part B is why. The mutant that turns the
+coverage NOTE into a FAIL is killed *only* by a benign input, so a corpus of
+nothing but broken fixtures would score a false-alarm mutant as undetected and
+let a gate drift into crying wolf unnoticed. Two of the six code mutants survived
+the first corpus and were killed only by adding two new members — one whose only
+defect is staleness, one whose only defect is ref format — which is the clearest
+available evidence that the score measures the corpus and not the author's
+confidence.
++
+*The declared hole:* five parse-family mutants are reported **NOT SCORED** and
+excluded from both denominators, because `scripts/check-workflows-parse.sh`
+accepts only `yq` or `ruby` and the home context has neither. That is an
+instrument absence, not a pass. Those five are scored on a runner, where the gate
+has a parser; the suite prints which members were unscored so the gap is visible
+in the output rather than buried in an average. Until a runner run is read, the
+honest claim is 100% over the scoreable subset.
++
+Every code mutant is anchored to a line that must exist verbatim in the gate; if
+an anchor stops matching, the suite exits 2 ("no check performed") rather than
+silently scoring a mutant that was never constructed.
 
 | 11. Fuzz
 | N/A
@@ -206,6 +251,35 @@ two of those are N/A by the component's nature, and the taxonomy's own §Scope
 treats "N/A with justification" as a truthful state rather than a gap to paper
 over.
 
-The distance to *B* is dominated by two things worth doing: a scored mutation
+The distance to *B* was dominated by two things worth doing: a scored mutation
 pass over the gate fixtures, and property-based coverage of the reader's ref
-normalisation. Neither is claimed today.
+normalisation. **Both were implemented on 2026-09-28** and both now sit in
+category rows 9 and 10 above with their measured numbers — property test at exit
+0 across four seeds and three corpus sizes with all negative controls firing;
+mutation scoring at detection 26/26, specificity 16/16, code mutation score 6/6.
+
+*The grade does not move, and this is the reason rather than an omission.* Two
+things still stand between this repository and the next grade, and neither is
+satisfied by the work above:
+
+. The blocker named for *C* is untouched. P2P, E2E, lifecycle and benchmarks are
+  no more satisfied today than they were; adding mutation and property coverage
+  strengthens rows 9 and 10 and does nothing for the rows that decide C. Moving
+  the grade on the strength of two improved rows would be scoring a different
+  question than the one the grade answers.
+. The mutation score is 100% over a *declared subset*, not over the corpus. Five
+  parse-family mutants are NOT SCORED in the home context for want of a YAML
+  parser, and no runner run of `tests/mutation-score-test.sh` has been read back
+  — which, given that runs pushed by the authoring agent are refused at startup
+  before any workflow file is read (`CI-CD-COVERAGE.adoc`, cause 2), is not a
+  formality that time will fill in. A grade resting on an instrument that has
+  never completed a full pass is exactly the half-built gate this estate's
+  sequencing rules exist to stop.
+
+So: *CRG D*, with the distance to B reduced from two named items to one
+evidential one. The single re-arm trigger for revisiting the grade is a runner
+run of `tests/mutation-score-test.sh` in which the five parse mutants are scored
+rather than skipped. If that run reports 31/31 detection with specificity
+unchanged, rows 9 and 10 are fully evidenced and the C-row question becomes the
+only thing standing in the way — at which point the grade should be reassessed
+against *that* gap, not against this one.
