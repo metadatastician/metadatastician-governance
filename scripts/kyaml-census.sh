@@ -65,7 +65,7 @@ ROOT="$(cd "$ROOT" && pwd)"
 
 kind="$(yaml_parser_kind)"
 if [ "$kind" = "none" ]; then
-  printf 'E-INSTRUMENT: no YAML parser (yq/ruby/python) — NO CENSUS WAS PERFORMED\n' >&2
+  printf 'E-INSTRUMENT: no YAML parser (yq/ruby/nickel/python) — NO CENSUS WAS PERFORMED\n' >&2
   exit 2
 fi
 

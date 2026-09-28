@@ -766,6 +766,29 @@ states this honestly rather than papering over it: the parse family is reported
 as NOT SCORED and excluded from both denominators where its instrument is
 missing.
 
+*Nickel joined this repository's own parser chain on 2026-09-28, with owner
+consent.* `scripts/lib/yaml.sh` now falls back yq → ruby → nickel → python3,
+and the choice is recorded because it looks odd until measured: nickel is a
+configuration language, not a YAML tool, but it imports YAML natively
+(`import "file.yaml"`) and `nickel export --format json` over a one-line
+importing program meets the same canonical-JSON contract as the other
+branches. Two measured facts are recorded in that file's header so nobody
+re-derives them: nickel picks the import format by file *extension* (an
+extensionless `actions.lock` must be imported through a `.yaml` symlink), and
+its JSON export alphabetises fields (immaterial — every consumer is `jq`).
+The official binary is unobtainable from this environment (the release-asset
+CDN is TLS-blocked directly and through the API octet-stream redirect;
+crates.io, rustup, conda and the Debian mirrors likewise; npm `nickel` and
+PyPI `nickel` are unrelated name-squats — a 2013 Jekyll post-generator and a
+django utils collection), so the branch was instead exercised against the
+nickel 1.18.0 core shipped inside the `py-nickel` wheel (PyO3 — python only
+*hosts* the Rust core; nickel does the parsing), behind a shim exposing the
+same `nickel export --format json` surface, with the flags read from 1.18.0's
+own CLI definition: all 24 tracked YAML documents parse, and parse identically
+— modulo field order — to an independent YAML 1.2 parser. Where neither the
+binary nor the wheel exists, the branch fails closed (exit 2, NO CHECK), like
+every other absent instrument in this list.
+
 *`pages.yml` was removed — decision recorded.* The question was whether to
 re-enable GitHub Pages for this repository or delete the workflow. Measured
 facts, all on 2026-09-28: Pages *is* switched on at the repository level

@@ -103,7 +103,7 @@ bad() { echo "  FAIL $1"; violations=$((violations + 1)); }
 # ── instrument check: no parser means no score, and that is exit 2 ─────────
 kind="$(bash -c ". '$READER'; yaml_parser_kind")"
 if [ "$kind" = "none" ]; then
-  echo "ref-normalisation-property-test: no YAML parser available (tried yq, ruby, python3+pyyaml)" >&2
+  echo "ref-normalisation-property-test: no YAML parser available (tried yq, ruby, nickel, python3+pyyaml)" >&2
   echo "ref-normalisation-property-test: NO CHECK WAS PERFORMED — no property was evaluated, so there is no score" >&2
   exit 2
 fi
