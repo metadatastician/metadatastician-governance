@@ -43,7 +43,19 @@ jobs:
 
       - name: Upload SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)
+        # Same pin and same provenance as codeql.yml: this line previously read
+        # `@1c5b6756… # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)`
+        # while `1c5b6756…` IS v4.38.1. Now v4.38.0 (b96794f0…).
+        #
+        # SCOPE, stated narrowly so it is not over-read: this pin governs the
+        # UPLOAD step only. The reason this workflow is red is upstream of it —
+        # `Run OikosBot analysis` fails, so no results.sarif is ever written and
+        # this upload then fails for want of its input (run 36398030720). A
+        # correct pin cannot fix a missing file. The analysis step's own cause
+        # is NOT established; see docs/governance/CI-CD-COVERAGE.adoc, which
+        # records it as undiagnosed, and D-C in ADOPTION-AND-DEVIATIONS.adoc
+        # for the unpinned `oikos:latest` image that step runs.
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0 (nexia-list#100)
         with:
           sarif_file: results.sarif
           category: oikosbot

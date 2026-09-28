@@ -38,11 +38,41 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)
+        # PIN PROVENANCE — the previous line read
+        #   init@1c5b6756… # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)
+        # and BOTH HALVES OF THAT COMMENT WERE WRONG. `1c5b6756…` is not
+        # v4.38.0: it is the peeled commit of tag v4.38.1
+        # (c23de5a8… is the tag object; 1c5b6756… is what it points at), which
+        # is precisely the version nexia-list#100 records as refused at
+        # workflow startup estate-wide. The comment asserted compliance with
+        # the very pin that violated it, which is why the violation survived
+        # review: a reader checking the claim against the estate record sees
+        # agreement, and a reader checking only the SHA sees nothing wrong.
+        #
+        # v4.38.0 is b96794f015dfd88f77b49b1c93e0fa7110f94c63 — the SHA
+        # nexia-list#100 prescribes, and the same one deed-ecosystem runs green
+        # on. Note the tag object for v4.38.0 is 4bd7200e…, which is NOT
+        # usable as a `uses:` ref; the peeled commit is the only correct form.
+        #
+        # v4.38.2 (2892aa5e19bb…) postdates the block and is the next thing to
+        # test, but it is not ruled green anywhere in the estate, so the
+        # evidence-backed pin stays at v4.38.0. Re-arm when a run of 4.38.2 is
+        # observed green on main, and record that run here.
+        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0 (nexia-list#100)
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)
+        # Same pin and same provenance as `Initialize CodeQL` above: v4.38.0
+        # (b96794f0…), because 1c5b6756… is v4.38.1 and v4.38.1 is blocked
+        # estate-wide per nexia-list#100. This workflow has failed inside
+        # *Perform CodeQL Analysis* on every push to main since at least
+        # 2026-09-28T00:09 (runs 36361141951 and 36398031121) with init and
+        # checkout succeeding, so the failure was always an analysis-time
+        # failure and never a startup or pinning one. Treat a green
+        # `analyze (actions, none)` after this re-pin as the confirmation that
+        # the version was the cause; treat a red one as a separate, undiagnosed
+        # fault and do not edit this comment to imply a fix that did not work.
+        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0 (nexia-list#100)
         with:
           category: "/language:${{ matrix.language }}"
