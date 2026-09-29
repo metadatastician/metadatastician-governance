@@ -14,7 +14,15 @@ fi
 shift
 case "$*" in
   'repos/metadatastician/sample --jq [.'*) printf 'false\tfalse\tmain\n';;
-  *'/git/trees/main?recursive=1'*) printf '.github/workflows/ci.yml\n.github/workflows/actions.lock\n';;
+  *'/git/trees/main?recursive=1'*)
+    # Run the caller's --jq filter against a tree that holds NON-workflow entries too,
+    # as gh does. A stub that returned already-filtered text could not see a broken
+    # filter -- which is how a jq precedence bug shipped (`.path | test(..) or
+    # .path==..` evaluates the right-hand `.path` on a string) that made lockfix.sh
+    # fail with "tree API failed" for every repository that has any other file.
+    expr=''; prev=''
+    for a in "$@"; do [ "$prev" = --jq ] && expr="$a"; prev="$a"; done
+    printf '%s' '{"tree":[{"path":"README.md","type":"blob"},{"path":".github","type":"tree"},{"path":".github/workflows","type":"tree"},{"path":".github/workflows/ci.yml","type":"blob"},{"path":".github/workflows/actions.lock","type":"blob"},{"path":"src/main.rs","type":"blob"}]}' | jq -r "$expr";;
   *'/contents/.github/workflows/ci.yml?ref=main'*) printf 'bmFtZTogQ0kK';;
   *'/contents/.github/workflows/actions.lock?ref=main'*) printf 'b2xkLWxvY2sK';;
   *'/git/ref/heads/main'*) printf 'abc123\n';;
