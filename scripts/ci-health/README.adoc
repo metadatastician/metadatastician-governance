@@ -96,7 +96,10 @@ scope. Repository scans cover runs, billing annotations, and workflow triggers.
   as an organization Actions variable. If it is unavailable, detection uses an
   explicit 25-hour fallback horizon (longer than the daily schedule interval).
 * API failures are `E-INSTRUMENT` findings and abort a sweep. A partial scan is
-never reported as a healthy estate.
+never reported as a healthy estate. The fail-closed path prints the failed
+scope and `E-INSTRUMENT` detail into the Actions log (without updating the
+tracking issue); for org-policy 403s, verify the PAT has classic `repo`,
+`workflow`, and `admin:org` scopes.
 * A complete finding-free sweep closes the rolling issue; a later real finding
 opens a new report.
 

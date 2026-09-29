@@ -60,6 +60,18 @@ done
 
 if [ -s "$errors" ]; then
   echo "Detection was incomplete for $(wc -l <"$errors") repo(s); refusing remediation and a false health report" >&2
+  # Findings are normally consumed to build the report below. On the fail-closed
+  # path they used to be discarded, leaving Actions logs with only an exit code
+  # and the number of failed repositories. Surface the exact E-INSTRUMENT rows
+  # so operators can distinguish (for example) an org-policy 403/token-scope
+  # problem from a transient API failure without publishing partial health data.
+  while IFS= read -r failed_scope; do
+    [ -z "$failed_scope" ] && continue
+    awk -F '\t' -v scope="$failed_scope" \
+      '$1 == scope && $2 == "E-INSTRUMENT" { printf "  %s (%s): %s\n", $1, $3, $4 }' \
+      "$findings" >&2
+  done <"$errors"
+  echo "No remediation or tracking-issue update was performed. Check the GitHub API error above and verify the sweep PAT has classic repo, workflow, and admin:org scopes." >&2
   exit 2
 fi
 
