@@ -285,9 +285,35 @@ fi
 
 
 # --- D: burn anti-pattern (bare [push, pull_request] double-trigger), via API
-if ! paths=$(gh api "repos/$O/$R/git/trees/$default_branch?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$"))) | .path'); then
+#
+# A repository with no commits has no workflow files, so there is nothing to
+# classify. GitHub answers the tree query for it with 409 "Git Repository is
+# empty." (409 is a documented response of this endpoint:
+# docs.github.com/en/rest/git/trees). That is a DETERMINATE answer about the
+# repository, not a failure to ask -- the distinction check-lock-pins.sh draws
+# between a 404 and a 503 -- and treating it as E-INSTRUMENT let ONE empty
+# repository refuse the whole estate report on every daily sweep from
+# 2026-09-21 (runs 35562513590, 35688334220, 35819928020, 36379748097 and
+# 36523577570: each job log ends "gh: Git Repository is empty. (HTTP 409)" and
+# then "Detection was incomplete for 1 repo(s)").
+#
+# Only that exact answer is excused. Any other tree failure -- 403, 404, 422,
+# 5xx, no network, or a 409 that says something else (GitHub also returns 409
+# for a repository that is unavailable) -- is still an E-INSTRUMENT, so the
+# sweep still refuses to call an estate healthy on the strength of a query it
+# could not make.
+tree_err=$(mktemp) || die_api "cannot create a scratch file for the repository-tree query"
+if ! paths=$(gh api "repos/$O/$R/git/trees/$default_branch?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$"))) | .path' 2>"$tree_err"); then
+  if grep -qF 'Git Repository is empty' "$tree_err"; then
+    rm -f "$tree_err"
+    echo "SKIP $R empty repository (no commits, so no workflows to classify)" >&2
+    exit 0
+  fi
+  cat "$tree_err" >&2 # keep gh's own error text in the log, exactly as before
+  rm -f "$tree_err"
   die_api "repository-tree query failed; workflow trigger health is unknown"
 fi
+rm -f "$tree_err"
 while IFS= read -r path; do
   [ -z "$path" ] && continue
   if ! content=$(gh api "repos/$O/$R/contents/$path" --jq '.content'); then
