@@ -110,7 +110,20 @@ Note that `ecefb1c` was `main` when he wrote that; `main` is now
 `6b2693d7d`. Condition 1 is satisfied against whichever commit is `main` at
 the moment the branch is cut.
 
-## 5. Consequence for the menu
+## 5. Who can push what
+
+The agent token used to prepare these units is scoped to
+`metadatastician/metadatastician-governance` only. Pushing a branch to
+`hyperpolymath/MetaManifold-WebUI` returns `403 Permission denied`, and it
+cannot open or comment on anything in the upstream repo either. Consequence:
+**unit branches and PRs are pushed with your own credentials**; the agent's
+contribution is the patch, the PR body and the measurement that the patch is
+clean against current `main`. `RUNBOOK.md` has the commands.
+
+This also means the register is the durable artefact. It lives here, in git,
+where the token can write.
+
+## 6. Consequence for the menu
 
 Condition 2 is a *whitelist*. Six of the ~30 units in the catalogue are on
 it (statistics ×6, ci ×2, bench ×1, tests, minimum docs). Everything else is

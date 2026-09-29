@@ -1,0 +1,107 @@
+From 615db47d894d2292a0b141bc05bf6acb18358dd9 Mon Sep 17 00:00:00 2001
+From: "Jonathan D.A. Jewell" <6759885+hyperpolymath@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 18:32:52 +0000
+Subject: [PATCH] ci: rename the Julia check and install FastQC + MultiQC
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Two changes, both from the maintainer's own confirmed findings.
+
+1. The job name embeds ${{ matrix.julia-version }}, so the required status
+   check moves whenever the Julia pin is bumped and every open PR deadlocks
+   until the ruleset is edited by hand (upstream #14). It is now a fixed
+   'Julia tests'.
+
+2. CI installs cutadapt, cd-hit, vsearch and swarm but never FastQC or
+   MultiQC, while eight files under src/ call them, so the prefilter QC stage
+   was never exercised (upstream #15). Both are now installed from the pinned
+   versions in config/defaults/tool_versions.yml: MultiQC as a PyPI spec,
+   FastQC from the pinned URL, refused unless it hashes to the pinned SHA256
+   — the same rule vsearch and swarm already follow.
+
+No test step, pin or dependency is changed; nothing on the test path moves.
+---
+ .github/workflows/ci.yml | 49 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 051a5a1..5c9a470 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -12,7 +12,10 @@ concurrency:
+ 
+ jobs:
+   test:
+-    name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
++    # The pin, not the check: embedding matrix.julia-version here makes the
++    # required status check move every time the Julia pin is bumped, which
++    # deadlocks every open PR until the ruleset is edited by hand.
++    name: Julia tests
+     runs-on: ${{ matrix.os }}
+     # The repository's root .Rprofile sources renv/activate.R, so R started from
+     # the checkout auto-activates renv and rewrites the library paths. renv is a
+@@ -64,6 +67,16 @@ jobs:
+                 println(io, "R_APT_VERSION=", pins["runtimes"]["r"]["apt_version"])
+                 println(io, "BUN_VERSION=", pins["toolchain"]["bun"]["version"])
+                 println(io, "CUTADAPT_SPEC=cutadapt==", pins["tools"]["cutadapt"]["version"])
++                println(io, "MULTIQC_SPEC=multiqc==", pins["tools"]["multiqc"]["version"])
++                fastqc = pins["tools"]["fastqc"]
++                println(io, "FASTQC_VERSION=", fastqc["version"])
++                println(io, "FASTQC_URL=", fastqc["archives"]["any"]["url"])
++                println(io, "FASTQC_SHA256=", fastqc["archives"]["any"]["sha256"])
++                println(io, "MULTIQC_SPEC=multiqc==", pins["tools"]["multiqc"]["version"])
++                fastqc = pins["tools"]["fastqc"]
++                println(io, "FASTQC_VERSION=", fastqc["version"])
++                println(io, "FASTQC_URL=", fastqc["archives"]["any"]["url"])
++                println(io, "FASTQC_SHA256=", fastqc["archives"]["any"]["sha256"])
+                 for tool in ("vsearch", "swarm")
+                     archive = pins["tools"][tool]["archives"]["linux-x86_64"]
+                     println(io, uppercase(tool), "_VERSION=", pins["tools"][tool]["version"])
+@@ -116,9 +129,43 @@ jobs:
+       - name: Install cutadapt
+         run: pip install "$CUTADAPT_SPEC"
+ 
++      - name: Install MultiQC
++        run: pip install "$MULTIQC_SPEC"
++
++      # FastQC publishes no release API and no package-manager pin, so it is
++      # downloaded against the URL recorded in config/defaults/tool_versions.yml
++      # and refused unless it hashes to the SHA256 recorded beside it — the same
++      # rule the vsearch and swarm steps already follow.
++      - name: Install FastQC
++        run: |
++          curl -sSL -o fastqc.zip "$FASTQC_URL"
++          echo "$FASTQC_SHA256  fastqc.zip" | sha256sum -c -
++          unzip -q fastqc.zip
++          sudo mv "FastQC/fastqc" /usr/local/bin/fastqc
++          sudo chmod +x /usr/local/bin/fastqc
++          rm -rf fastqc.zip FastQC
++          fastqc --version
++
+       # The one tool CI does not pin. Ubuntu ships no versioned cd-hit revision worth
+       # naming, and 24.04 is frozen, so its cd-hit does not move under us; the version
+       # that arrives is recorded at preflight, where a discrepancy is visible.
++      - name: Install MultiQC
++        run: pip install "$MULTIQC_SPEC"
++
++      # FastQC publishes no release API and no package-manager pin, so it is
++      # downloaded against the URL recorded in config/defaults/tool_versions.yml
++      # and refused unless it hashes to the SHA256 recorded beside it — the same
++      # rule the vsearch and swarm steps already follow.
++      - name: Install FastQC
++        run: |
++          curl -sSL -o fastqc.zip "$FASTQC_URL"
++          echo "$FASTQC_SHA256  fastqc.zip" | sha256sum -c -
++          unzip -q fastqc.zip
++          sudo mv "FastQC/fastqc" /usr/local/bin/fastqc
++          sudo chmod +x /usr/local/bin/fastqc
++          rm -rf fastqc.zip FastQC
++          fastqc --version
++
+       - name: Install cd-hit
+         run: sudo apt-get install -y cd-hit
+ 
+-- 
+2.39.5
+
