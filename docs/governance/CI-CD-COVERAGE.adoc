@@ -44,6 +44,125 @@ actor, not a file. The six most recent are PR #44's own, which is why that
 pull request showed red checks before anyone read a line of it — and why the
 `gh actions-lock` probe written to settle the lock question has still never run.
 
+*Cause 3, found 2026-09-29, supersedes the token-scope diagnosis further down.*
+The sweep's job logs were read for the first time and show that it has been
+refused, on every scheduled run since 2026-09-21, by one empty repository — not
+by its PAT. See the Correction section that follows.
+
+== Correction (2026-09-29): the sweep was refused by an empty repository, not by its token
+
+*The diagnosis recorded below for run `36379748097` — "mechanism established; one
+link unverified", with the owner action "give the sweep's PAT `admin:org`" — is
+superseded. The unverified link was the false one.* The job logs were read on
+2026-09-29 and they say what the sweep was doing.
+
+*How they were read, because it is why every earlier diagnosis stayed
+inferential.* Job logs cannot be downloaded from the authoring sandbox: the log
+host fails the TLS handshake there. But `GET
+/repos/{owner}/{repo}/actions/jobs/{job_id}/logs` answers `302` with a
+short-lived signed blob URL (its `se=` expiry is about ten minutes out), and that
+URL can be fetched from any host that reaches blob storage — here, the agent's
+page-fetch tool. Such a URL is a read capability until it expires, so it is not
+pasted anywhere. Five logs were read this way:
+
+[cols="2,1,1,4",options="header"]
+|===
+| Run | Date | Repos scanned | What the log shows
+
+| `35562513590`
+| 09-21
+| 48
+| `gh: Git Repository is empty. (HTTP 409)`, then `Detection was incomplete for 1
+repo(s); refusing remediation and a false health report`, exit 2. Head
+`2fc60acb` — *the same commit whose run succeeded on 09-20*, which scanned 47.
+
+| `35688334220`
+| 09-22
+| 67
+| identical
+
+| `35819928020`
+| 09-23
+| 67
+| identical
+
+| `36379748097`
+| 09-28
+| 68
+| identical
+
+| `36523577570`
+| 09-29
+| 72
+| identical
+|===
+
+(09-24 to 09-27 were the separate `startup_failure` outage from lock drift. The
+failure below began three days before it and outlived it, which is why repairing
+the lock in #42 changed the symptom from "did not start" to "started and
+refused" and nothing else.)
+
+* *The token is not the cause.* Each log has exactly one `gh:` error line and
+exactly one incomplete target. Had `detect.sh @organization` failed it would have
+printed its own 403 line and been counted, and had the organisation variable
+been unreadable the sweep would have printed `CI_HEALTH_POLICY_EPOCH
+unavailable`. Neither appears. The PAT reads the organisation Actions policy and
+variables — what `admin:org` is for — so the token-scope hypothesis is
+*falsified for these five runs*.
+* *The scan count rose from 47 to 48 between the 09-20 success and the 09-21
+failure*, on an unchanged commit, so one repository came into the sweep's scope
+in that window; an empty repository has been in scope on every run since. All 62
+public repositories are non-empty (each was run through the real `detect.sh` on
+2026-09-29 and every one exits 0), and the organisation has twelve private
+repositories the authoring token cannot list, so the empty one is among those.
+*Which one is not known*: the log never named it (fixed below). The owner can find it with `gh repo list metadatastician --source
+--no-archived --json name,isEmpty --jq '.[] | select(.isEmpty) | .name'`.
+* *The mechanism.* `detect.sh`'s last step asks for the repository's tree; GitHub
+answers an empty repository `409 Git Repository is empty.` (409 is a documented
+response of that endpoint); `die_api` turned every failed query into
+`E-INSTRUMENT`; and `sweep.sh` refuses to publish on any incomplete detection.
+The refusal was correct behaviour applied to a wrong classification: an empty
+repository is a determinate fact about the repository, not a query that failed.
+
+*What changed.*
+
+. `detect.sh` treats that one answer — and only that one — as "nothing to
+classify" (`SKIP <repo> empty repository`). Every other failed query is still
+`E-INSTRUMENT`. `tests/ci-health-detect-test.sh` drives both directions,
+reproduces the production signature on the pre-fix script, and carries two
+mutants (one excuses nothing, one excuses everything).
+. `sweep.sh`'s refusal names every failed target and its reason in the log, the
+run summary and workflow annotations, and the watchdog quotes the failed run's
+annotations in its issue comment (this is why it now needs `checks: read`).
+Annotations are plain REST, so the next diagnosis does not depend on a log.
+`tests/ci-health-sweep-test.sh` and `tests/estate-sweep-watchdog-test.sh` cover
+it, the latter by extracting the watchdog's script from the YAML with a parser
+and running it against synthetic run histories.
+. Two defects surfaced only because the fix was checked against the live
+estate instead of a fixture. `lockfix.sh` failed for every repository (a jq
+precedence bug: `.path | test(..) or .path==..` evaluates the right-hand `.path`
+on a string) and had never run for real because the sweep never got past
+detection; its test now runs the filter it is given instead of stubbing the
+answer. And the published report would probably have been refused by GitHub for
+size — the B section alone measured 32 KB for the public repositories against a
+65,536-character limit — so the body is now capped, with the complete report kept
+in the run summary.
+. A failed *dry* B-LOCKFIX proposal is a warning and no longer withholds the
+report; a failed *live* repair still fails closed.
+
+*Still not known.*
+
+* *The real `gh actions-lock` generator.* No run of it through this pipeline has
+been read back; the extension installs on the runner (the step before the sweep
+passed in the 09-29 log) but its behaviour against these repositories is
+unobserved. The dry-run isolation above exists because of this.
+* *What the first healthy sweep will do.* It also resumes the live remediation the
+schedule has carried since August — `B-ALLOWLIST` (an organisation-policy PUT,
+only if the allow-list is under-covered) and `D-BURN` PRs (capped at 15) — for
+the first time since 09-20. Those code paths are unchanged by this correction.
+* *Whether this is the only cause.* If the next scheduled sweep after this merges
+still refuses, its annotations will name the target and the reason.
+
 == The one structural rule in this repository
 
 *A gate that must survive a lockfile fault may not carry a `uses:`.*
@@ -170,7 +289,9 @@ cannot be downloaded from the authoring environment —
 `results-receiver.actions.githubusercontent.com` and the blob host it redirects
 to both fail the TLS handshake there — so anything beyond step names and step
 conclusions is labelled as a hypothesis, and where a hypothesis has since been
-confirmed by a run, the confirming run is named.
+confirmed by a run, the confirming run is named. (Superseded in part on
+2026-09-29: the Correction section above records how job logs *can* be read, and
+the sweep row below is rewritten by what they showed.)
 
 [cols="2,2,2,4",options="header"]
 |===
@@ -178,8 +299,10 @@ confirmed by a run, the confirming run is named.
 
 | CI-Health Sweep `36379748097`
 | step 3, *Run CI-health sweep*
-| **mechanism established; one link unverified**
-| The good news first: steps 1-2 succeeded, so the run *started* and resolved
+| **superseded 2026-09-29 — see the Correction section**
+| _The token-scope reading in this row was falsified by the job log: the sweep was
+refused by an empty repository. The runtime analysis below still stands._ The
+good news first: steps 1-2 succeeded, so the run *started* and resolved
 `actions/checkout@v7.0.1` through the lockfile. Cause 1 is closed. The job then
 ran 17m54s (04:56:01 → 05:13:55) and failed in `scripts/ci-health/sweep.sh`.
 +
@@ -826,16 +949,14 @@ with content to publish and a lock that can be regenerated.
 blocking item, it is a settings change, and until it happens no agent branch in
 any repository in this estate can produce a run. Everything else in this document
 is second.
-. *Give the sweep's PAT `admin:org`.* This is the reason the sweep now fails,
-and it is a token-scope change, not a code change. `detect.sh @organization`
-reads the org Actions policy and emits `E-INSTRUMENT` (exit 2) on a 403; that
-populates `sweep.sh`'s error set and trips its honest-refusal guard, so the
-sweep runs for eighteen minutes and then declines to publish a report it could
-not complete — on every run, deterministically, until the scope is granted.
-`.github/workflows/ci-health-sweep.yml` already documents the requirement
-(classic `repo` + `workflow` + `admin:org`); what is missing is a PAT that meets
-it. Until then the estate report on issue #30 cannot refresh, and the watchdog
-will keep #43 open — correctly.
+. *Withdrawn (2026-09-29): "give the sweep's PAT `admin:org`".* This was
+recorded here as the reason the sweep fails. The job logs show it was not: the
+PAT reads the organisation Actions policy and variables, and the sweep was
+refused by an empty repository (see the Correction section). The requirement
+stands as documentation — `@organization` detection and the allow-list PUT do
+need `admin:org`, and `.github/workflows/ci-health-sweep.yml` says so — but no
+owner action on the token is needed to restore the report. The one owner action
+this leaves is optional housekeeping: the empty repository itself.
 . *Make the lock tool obtainable.* Every repository in the estate is one
 Dependabot bump away from the same outage, and the sanctioned cure
 (`gh actions-lock`) cannot be run from a sandboxed environment. A pinned,

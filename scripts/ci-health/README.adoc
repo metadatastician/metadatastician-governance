@@ -97,6 +97,25 @@ scope. Repository scans cover runs, billing annotations, and workflow triggers.
   explicit 25-hour fallback horizon (longer than the daily schedule interval).
 * API failures are `E-INSTRUMENT` findings and abort a sweep. A partial scan is
 never reported as a healthy estate.
+* Exactly one failed answer is excused: an *empty repository*. GitHub answers
+the tree query for a repository with no commits with `409 Git Repository is
+empty.`, which is a fact about the repository (no commits, so no workflows)
+rather than a failure to ask, so `detect.sh` prints `SKIP <repo> empty
+repository` on stderr and reports nothing for it. Any other failed query --
+403, 404, 422, 5xx, no network, or a 409 that says something else -- is still
+`E-INSTRUMENT`. One empty repository refused the whole estate report on every
+daily sweep from 2026-09-21, because it was not excused.
+* A refused sweep (exit 2) names every target that failed and why: in the job
+log, in the run summary, and as `::error` annotations. Annotations are plain
+REST -- `gh api repos/OWNER/REPO/check-runs/<job-id>/annotations` -- so the cause
+is readable even where the job log is not, and `estate-sweep-watchdog.yml`
+quotes them in its comment on the stale-report issue. At most seven targets are
+annotated individually (GitHub keeps ten per step, and the runner adds one of
+its own); the log lists all of them.
+* The tracking-issue body is capped at `MAX_ISSUE_BODY_BYTES` (default 60000):
+GitHub refuses an issue body over 65,536 characters, and that refusal would
+otherwise be the sweep's last act, after live remediation. A capped body is cut
+on a line boundary and says so; the complete report is in the run summary.
 * A complete finding-free sweep closes the rolling issue; a later real finding
 opens a new report.
 
@@ -113,7 +132,23 @@ existing open PR are reused. Workflow YAML changes are a standards#981 hazard:
 report the diff and refuse mutation. B-BADPIN remains report-only: deciding
 which commit matches a trailing version comment requires repository-owner review.
 B-ACTOR remains owner-settings-only (org/repo Settings -> Actions); no repository
-change applies. API, parser, generator and token failures are exit 2, not success.
+change applies. `lockfix.sh` itself exits 2 on API, parser, generator and token
+failures, never success. What the sweep does with that exit depends on the mode:
+in a scheduled (dry) sweep a failed proposal is a `::warning` annotation and an
+`E-INSTRUMENT` line in the report's B-LOCKFIX section, and the report is still
+published -- the proposal failed, the detection did not, and the B-LOCKFILE
+finding is already in the report. A live run (`ENABLE_LOCKFIX_PRS=true`) can open
+PRs in other repositories, so a failed repair check there still fails closed.
 To prove in Actions: manually dispatch `dry_run=true`, `limit=3` after this
 workflow reaches main, review the diff summary, then separately opt in to live
 PRs. The authoring installation cannot dispatch this workflow (HTTP 403).
+
+The first exercise of `lockfix.sh` against real repositories (2026-09-29, dry, the
+generator stubbed because the extension cannot be installed where it was run)
+found that it failed for *every* repository: its tree filter read
+`.path | test(..) or .path==..`, and a pipe binds looser than `or`, so the
+right-hand `.path` was evaluated on a string. It had never run for real because
+the sweep never got past detection. `tests/ci-health-lockfix-test.sh` now runs the
+filter it is given instead of stubbing the answer. What is still unproven is the
+generator itself: no run of `gh actions-lock` through this pipeline has been read
+back.
