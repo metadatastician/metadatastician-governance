@@ -69,13 +69,17 @@ untouched by any subsequent work) and observed on a runner: the merge push ran
 `Lock Sync Gate` to success (`36361142025`) and every uses-free workflow started.
 Not audited.
 
-*Review date / re-arm.* On the first run of `zz-probe-actions-lock.yml` that
-proves the tool works on a runner. At that point regenerate the whole lock with
-the tool, take only `actions.lock` from the result, and confirm the three entries
-survive as the tool writes them — which either ratifies this deviation
-retrospectively or shows the hand-made shape was wrong. If the owner prefers,
-revert the three entries now: the gate reports them as NOTEs, not failures, so
-nothing breaks.
+*Review date / re-arm.* The probe that carried this trigger was retired
+2026-09-29 with its question answered by the CI-Health Sweep's own runner step
+(`gh extension install github/gh-actions-lock --pin v0.1.6` completes on
+`ubuntu-latest`; recorded in `CI-CD-COVERAGE.adoc`). The re-arm stands in a
+stronger form than the probe could offer: on the first live B-LOCKFIX repair
+whose generated lock passes `check-lock-sync.sh` and `check-lock-pins.sh
+--offline` on the runner, take only `actions.lock` from the result and confirm
+the three entries survive as the tool writes them — which either ratifies this
+deviation retrospectively or shows the hand-made shape was wrong. If the owner
+prefers, revert the three entries now: the gate reports them as NOTEs, not
+failures, so nothing breaks.
 
 === D-B — `ci-health-sweep.yml` carries a mutable tag, not a SHA pin
 
@@ -116,42 +120,58 @@ regenerate, then convert this line to the full SHA and confirm
 `check-lock-pins.sh` still passes. This deviation should be the first one closed,
 because it is the one that is actively costing pinning coverage.
 
-=== D-C — `oikosbot.yml` runs an unpinned container image
+=== D-C — `oikosbot.yml` runs a container image pinned by digest, not by version tag
 
-*Scope.* One line: `ghcr.io/hyperpolymath/oikos:latest`, invoked by `docker run`.
-Present since at least 2026-07-28 (`2143f7e74d`), i.e. two months, and not
-introduced by #42.
+*Scope.* One line: `ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded`,
+invoked by `docker run`. Present in the `:latest` form since at least
+2026-07-28 (`2143f7e74d`); re-pointed at the digest 2026-09-29.
 
-*Authority.* None. This one is the clearest case of an unnoticed deviation
+*Authority.* None — originally the clearest case of an unnoticed deviation
 rather than a chosen one: it survived because no gate in this repository reads
 image references inside `run:` blocks — the pinning gates read YAML `uses:`
-values, and a `docker run` string is opaque to them.
+values, and a `docker run` string is opaque to them. The 2026-09-29 re-point
+brings it under deliberate, recorded management without changing that gate
+blind spot.
 
-*Reason.* The file records it: "The former `ghcr.io/hyperpolymath/oikos:v2.0.0`
-pin referenced a tag that never existed on the package." That claim could not be
-independently verified from here — `GET
-/orgs/hyperpolymath/packages/container/oikos/versions` answers 404 to this token —
-so it is reported as recorded, not as established. If it is true, there is
-currently no version tag to pin to and the deviation is upstream's to fix.
+*Reason.* The file's own history records the shape of the gap: "The former
+`ghcr.io/hyperpolymath/oikos:v2.0.0` pin referenced a tag that never existed on
+the package." On 2026-09-29 the claim behind the choice was verified directly
+rather than quoted: the package's public package page
+(hyperpolymath/oikosbot → Packages → oikos) shows *no version tags at all* —
+upstream pushes `latest` plus `sha-<commit>` tags from its CI — while `latest`
+did resolve, sharing digest `sha256:cc9b731d…` with `sha-2f47a61` at read
+time. A tag that another repository's CI overwrites is not a pin; a digest is
+what the registry can be asked to verify. The digest is therefore pinned with
+its provenance recorded in-file, and the workflow prints the registry-resolved
+RepoDigests line so the job log carries the exact bytes that ran. The registry
+counterexample stands on two legs, both dated 2026-09-29: the tag list is
+digest-shaped (`latest`, `sha-<commit>`, no `v*`), and no semantic-version tag
+exists to name.
 
 *Containment.* Weak, and stated as weak: the job runs with
 `permissions: security-events: write, contents: read`, `--user "$(id -u):$(id -g)"`,
 a read-only-mounted workspace by convention rather than enforcement, and its SARIF
-upload is a separate step. A moved `latest` would run arbitrary code as the job
-user with write access to security events. This run is *also* the one failing on
-`main` (`36361141992`, failed inside *Run OikosBot analysis*), so the deviation
-and the outage overlap and neither is diagnosed.
+upload is a separate step. The digest pin removes the *moves-under-you* half of
+the exposure — `latest` re-pointing silently — but the image content itself is
+exactly as much of an upstream product as it was. The run is *also* the one
+failing on `main` (`36361141992`, `36398030720`: analysis produces no
+`results.sarif`, upload then fails for want of its input); the digest pin does
+not claim to cure that failure, which lives inside the image and is upstream's
+to fix or absorb — it makes the failure attributable by making every run
+byte-reproducible.
 
-*Evidence status.* Assumed. No gate covers it and no test asserts anything about
-it.
+*Evidence status.* Partially measured, stated as such: the digest's validity
+read off the public package page (2026-09-29); the analysis failure's root
+cause not established here. No gate covers image references in `run:` blocks;
+no test asserts anything about this pin.
 
-*Review date / re-arm.* Two triggers, whichever comes first: the upstream package
-publishes a real version tag, at which point pin it by digest; or a gate is added
-that reads container image references in `run:` blocks and requires a digest. The
-second is the better fix, because it closes the blind spot rather than the
-instance — and it should be proposed under `CHANGE-PROCEDURE.adoc`, not added
-unilaterally, since it changes what every workflow in this repository must
-satisfy.
+*Review date / re-arm.* Two triggers, whichever comes first: the upstream
+package publishes a real version tag, at which point pin it by digest of that
+tagged release; or a gate is added that reads container image references in
+`run:` blocks and requires a digest. The second is the better fix, because it
+closes the blind spot rather than the instance — and it should be proposed
+under `CHANGE-PROCEDURE.adoc`, not added unilaterally, since it changes what
+every workflow in this repository must satisfy.
 
 == Sequenced upstream adoptions (in force upstream, not yet actionable here)
 
@@ -239,23 +259,33 @@ drifted a long way from the tree:
 | —
 | 173
 
-| Current tree, steady state (`pages.yml` removed, temporary probe deleted)
+| Tree of 2026-09-28 (`pages.yml` removed, temporary probe deleted)
 | 23
 | 10
 | 12
-| **431**
+| 431
 
-| Current tree, with the temporary `zz-probe-actions-lock.yml` present
+| Tree of 2026-09-28, had the temporary `zz-probe-actions-lock.yml` been present
 | 24
 | 11
 | 12
 | 519
+
+| Current tree, measured 2026-09-29 (probe and `codeql.yml` retired)
+| **22**
+| **9**
+| **12**
+| **421**
 |===
 
-The probe is a throwaway instrument (88 comment lines of its own) and is not part
-of the migration surface, so **431 is the number the #1021 proof has to
-preserve**; the 519 figure is recorded only so that whoever runs the census while
-the probe still exists is not confused by the difference. The drift from 173 is
+The probe was a throwaway instrument (88 comment lines of its own) and never
+was part of the migration surface; it was deleted 2026-09-29 with the answer it
+existed to obtain recorded in `CI-CD-COVERAGE.adoc`. `codeql.yml`, retired the
+same day after the measured default-setup conflict, carried 37 comment lines,
+so the arithmetic is: 431 − 37 (codeql) + 20 (`oikosbot.yml` digest-provenance
+commentary) + 7 (`ci-health-sweep.yml` enumerating the new startup classes) =
+**421, the number the #1021 proof has to preserve**. The 519
+figure remains recorded so older notes citing it can be reconciled. The drift from 173 is
 fully accounted for, and every line of it is commentary rather than conversion:
 this repository's workflow comments grew substantially as the CI gates and the
 2026-09-28 incident were documented in-file (`scorecard.yml` now carries 56
@@ -267,25 +297,30 @@ comment-length-neutrally (40 lines before and after) precisely so that a
 factual correction to one date would not move this table. Nothing was converted,
 and the census still converts nothing.
 
-The two current-tree rows are re-measured on the tree that merges this record
-with #46 (merged as `4d4ec04e2b`), which re-pinned `codeql-action` off the
+The 2026-09-28 rows were measured on the tree that merged this record with #46
+(merged as `4d4ec04e2b`), which re-pinned `codeql-action` off the
 estate-blocked v4.38.1 SHA and documented the provenance in-file:
 `codeql.yml` grew from 7 to 37 comment lines and `oikosbot.yml` from 7 to 19.
-Measured before #46 landed, the same rows read 370 / 458; the difference is
+Measured before #46 landed, the same rows read 370 / 458; the difference was
 exactly #46's 42 annotation lines — commentary, not conversion, and accounted
 for here rather than left for the next reader to re-derive from a stale table.
 
-Re-measured 2026-09-29 (`./scripts/kyaml-census.sh`, parser python/PyYAML 6.0.3)
-after the watchdog gained 19 comment lines recording why the CI-Health Sweep
-failed for eight days (53 to 72; no other YAML file changed): 24 files, 11 step 6,
-12 step 5, **519** with the probe and **431** without it. The 19 lines are again
-commentary, not conversion, and the census still converts nothing.
+Re-measured 2026-09-29 (`./scripts/kyaml-census.sh`, parser `nickel` via the
+`py-nickel` shim) on the current tree: 22 tracked files, 9 step 6, 12 step 5,
+**421** comment lines. The movements since the table's middle rows are all
+recorded with their causes: `zz-probe-actions-lock.yml` (88 lines) was deleted
+with its question answered, `codeql.yml` (37 lines) was retired on the measured
+default-setup conflict, `oikosbot.yml` grew 20 lines recording the digest
+provenance and the resolved-digest report step (19 to 39), and
+`ci-health-sweep.yml` grew seven naming the two new report-only startup
+classes (40 to 47). Nothing was converted, and the census still converts
+nothing.
 --
 * The census converts nothing. `yq -i` and every other blind rewrite stay
   forbidden here until #1021 lands.
 
 Migration point, so the step is booked rather than remembered: when #1023 rules
 scope and #1021/#1022 have landed, the work here is *step 5 for the twelve
-estate-authored YAML files and step 6 for the ten workflows, if ruled in*, with
-the census output as the work list and the comment count (431) as the acceptance
+estate-authored YAML files and step 6 for the nine workflows, if ruled in*, with
+the census output as the work list and the comment count (421) as the acceptance
 measure.
