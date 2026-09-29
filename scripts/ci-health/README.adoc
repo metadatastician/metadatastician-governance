@@ -39,6 +39,47 @@ zero-missing and this stops re-firing (idempotent).
 | **Auto-fix** — PUT the curated superset (`action-superset.txt`), keep
 `sha_pinning_required`.
 
+| `B-LOCKFILE`
+| A `startup_failure` attributable to lock/YAML drift: the workflow's `uses:`
+refs are not recorded under its own path in `.github/workflows/actions.lock`.
+GitHub refuses the run at creation — zero jobs, no log. Diagnosed by mirroring
+the default branch and running `check-lock-sync.sh` on it.
+| **Repair** — `B-LOCKFIX` regenerates the lock in the same commit as the ref
+change (dry-run by default; live PRs need `ENABLE_LOCKFIX_PRS=true`).
+
+| `B-BADPIN`
+| A `startup_failure` attributable to a ref that resolves nowhere: a `uses:`
+ref that no commit answers (compare/commits API 404/422). Unlockable until the
+workflow is re-pointed at a real commit.
+| **Report only** — the finding names the dead ref and the version comment.
+
+| `B-OFFBRANCH`
+| A `startup_failure` attributable to a cross-repo reusable-workflow pin that
+is **not an ancestor of the callee's default branch**, or does not resolve at
+all, or names a callee file absent at the pinned ref. Reference case measured
+in this repository 2026-09-28: Scorecard's pin compared _diverged_ against
+`standards/main` and the run created zero jobs (run 36361142305). Diagnosed
+file-side: the mirrored caller names the callee; the `compare` API answers
+ancestry and resolvability determinately.
+| **Report only** — re-pointing a caller at a different commit is a human
+trust decision (T-1); the finding carries the compare verdict.
+
+| `B-PERMS`
+| A `startup_failure` attributable to a **caller permission under-grant**
+(`hyperpolymath/standards#451`): the called reusable workflow requires a
+permission scope the caller grants less of. Banner read 2026-09-29 on
+consent-aware-web run 36282215987: _"The workflow is requesting 'actions:
+read', but is only allowed 'actions: none'"_ — that one banner shape was 7 of
+the 13 then-unclassified default-branch failures. Diagnosed file-side: the
+callee is read **at the pinned ref**, requirement is the per-scope maximum
+over its workflow- and job-level maps, and the caller grant is its job-level
+map when present (job permissions replace workflow permissions wholesale in
+GitHub Actions), else the workflow-level map. A caller that declares no
+permissions anywhere is *indeterminate* (the repository default is not
+observable from files) and is left to the generic bucket, never guessed.
+| **Report only** — widening a token grant is a human security decision; the
+finding names the missing scope(s) and the job.
+
 | `B-STARTUPFAIL`
 | An active workflow whose latest run is `startup_failure`. Historical failures
 created before `CI_HEALTH_POLICY_EPOCH` do not keep the rolling issue open:
@@ -133,9 +174,19 @@ when `ENABLE_LOCKFIX_PRS=true` is explicitly supplied on a manual dispatch with
 `dry_run=false`; the daily schedule always leaves this class dry. PRs contain
 the detector's drifted refs and failed run IDs. The stable repair branch and
 existing open PR are reused. Workflow YAML changes are a standards#981 hazard:
-report the diff and refuse mutation. B-BADPIN remains report-only: deciding
-which commit matches a trailing version comment requires repository-owner review.
-B-ACTOR remains owner-settings-only (org/repo Settings -> Actions); no repository
+when the generator touches workflow YAML, `lockfix.sh` restores the mirrored
+YAML byte-for-byte, keeps only the new `actions.lock`, and re-runs both
+parser-first lock gates (pin check in `--offline` mode, so no network lookup
+stands between a teardown and its verdict). If the untouched YAML verifies
+against the new lock, the generator churn was noise and the lock-only repair
+is PROPOSED; if it does not (the canonical case: the generator de-pinned a SHA
+and keyed the lock on the tag), only a YAML rewrite could close the gap, and
+that is reported as standards#981 with no PR. B-BADPIN remains report-only:
+deciding which commit matches a trailing version comment requires
+repository-owner review. B-OFFBRANCH and B-PERMS are likewise report-only:
+re-pointing a caller or widening a grant are trust decisions a sweep may
+diagnose but never apply. B-ACTOR remains owner-settings-only (org/repo
+Settings -> Actions); no repository
 change applies. `lockfix.sh` itself exits 2 on API, parser, generator and token
 failures, never success. What the sweep does with that exit depends on the mode:
 in a scheduled (dry) sweep a failed proposal is a `::warning` annotation and an

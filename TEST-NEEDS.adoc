@@ -11,9 +11,13 @@ https://github.com/hyperpolymath/proven-tests-and-benches[`proven-tests-and-benc
 
 *Last measured:* 2026-09-29 by `./scripts/run-shell-test-suite.sh`, exit 0
 (bash 5.2.15, jq 1.6, nickel 1.18.0 core via `py-nickel` as the YAML parser) —
-11 test files, 117 `ok` assertions counted in their own output. The previous
-figure on this line (10 files, 112 checks) was before `tests/ci-health-sweep-errors-test.sh`
-was cherry-picked from PR #52 and reconciled against PR #51. Two files
+11 test files, 140 `ok` assertions counted in their own output. Growth since the
+previous figure (11 files, 117): the B-PERMS / B-OFFBRANCH detector classes
+(`tests/ci-health-detect-test.sh` +12 incl. two killed mutants), the
+standards#981 restore-then-verify repair (`tests/ci-health-lockfix-test.sh` +7
+incl. two killed mutants), the report-only class seam
+(`tests/ci-health-sweep-test.sh` +1), and `--offline` for the pin gate
+(`tests/lock-pins-test.sh` +1). Two files
 do not report in that unit: the property suite states 8 properties over 40
 generated cases, and the README-badges test prints a single `OK`.
 
@@ -143,13 +147,24 @@ defect is staleness, one whose only defect is ref format — which is the cleare
 available evidence that the score measures the corpus and not the author's
 confidence.
 +
+*Runner evidence, measured 2026-09-29.* On the `ubuntu-24.04` runner the five
+parse mutants ARE scored (yq/ruby are present there): CI job `36551068185`,
+step 4 (*Shell test suite*), reports detection 100.0% (**29/29**), specificity
+100.0% (**18/18**), code mutation score 100.0% (**6/6**), zero NOT SCORED. The
+local-home numbers below remain the recorded home-context measurement; the two
+differ only by the five parse-family members, exactly as declared.
++
 *The declared hole:* five parse-family mutants are reported **NOT SCORED** and
 excluded from both denominators, because `scripts/check-workflows-parse.sh`
 accepts only `yq` or `ruby` and the home context has neither. That is an
 instrument absence, not a pass. Those five are scored on a runner, where the gate
 has a parser; the suite prints which members were unscored so the gap is visible
-in the output rather than buried in an average. Until a runner run is read, the
-honest claim is 100% over the scoreable subset.
+in the output rather than buried in an average. On 2026-09-29 a runner run was
+read — CI job `36551068185` step 4 — and it scored all five rather than skipping
+them (29/29 detection, 18/18 specificity, 6/6 code, zero NOT SCORED), so the
+hole now carries runner evidence instead of an open question. The label is
+unchanged on purpose: the *home* context still cannot score them, and that is
+what the label is about.
 +
 Every code mutant is anchored to a line that must exist verbatim in the gate; if
 an anchor stops matching, the suite exits 2 ("no check performed") rather than
@@ -280,19 +295,21 @@ satisfied by the work above:
   strengthens rows 9 and 10 and does nothing for the rows that decide C. Moving
   the grade on the strength of two improved rows would be scoring a different
   question than the one the grade answers.
-. The mutation score is 100% over a *declared subset*, not over the corpus. Five
-  parse-family mutants are NOT SCORED in the home context for want of a YAML
-  parser, and no runner run of `tests/mutation-score-test.sh` has been read back
-  — which, given that runs pushed by the authoring agent are refused at startup
-  before any workflow file is read (`CI-CD-COVERAGE.adoc`, cause 2), is not a
-  formality that time will fill in. A grade resting on an instrument that has
-  never completed a full pass is exactly the half-built gate this estate's
-  sequencing rules exist to stop.
+. The mutation score is 100% over a *declared subset* in the home context. Five
+  parse-family mutants are NOT SCORED here for want of a YAML parser — but the
+  runner run named below has now been read, so this point is recorded as
+  *measured*, not open: it no longer stands between the rows and reassessment.
 
 So: *CRG D*, with the distance to B reduced from two named items to one
-evidential one. The single re-arm trigger for revisiting the grade is a runner
-run of `tests/mutation-score-test.sh` in which the five parse mutants are scored
-rather than skipped. If that run reports 31/31 detection with specificity
-unchanged, rows 9 and 10 are fully evidenced and the C-row question becomes the
-only thing standing in the way — at which point the grade should be reassessed
-against *that* gap, not against this one.
+evidential one. **The re-arm trigger fired on 2026-09-29.** CI job
+`36551068185`, step 4, ran `tests/mutation-score-test.sh` on `ubuntu-24.04` and
+scored all five parse mutants rather than skipping them: detection 100.0%
+(29/29), specificity 100.0% (18/18), code mutation score 100.0% (6/6), zero NOT
+SCORED. (The denominators are 29/18/6, not the 31/31 this note once forecast,
+because the corpus has grown since that figure was written — the subtraction is
+the corpus changing, not the verdict.) Rows 9 and 10 are now fully evidenced
+in both contexts; per this document's own trigger, what remains between this
+repository and the next grade is the C-row question alone. Reassessment of the
+grade itself is deliberately *not* performed here — labels and grades in this
+file change only by a decision recorded on their own terms, not as a side effect
+of evidence landing.

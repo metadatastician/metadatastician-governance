@@ -42,12 +42,48 @@ git -C "$tmp" add .github/workflows && git -C "$tmp" -c user.name=ci-health -c u
 command -v gh >/dev/null || fail 'gh unavailable'
 # gh actions-lock operates on the mirrored root only; never on another checkout.
 (cd "$tmp" && gh actions-lock --no-migrate-local-actions) || fail 'generator unavailable or failed'
+yaml_restored=false
 # Diff every workflow YAML byte-for-byte; a changed YAML is a standards#981
 # judgement call, never an automated commit. Compare names as well as contents.
 if ! diff -qr --exclude=actions.lock "$tmp/before" "$tmp/.github/workflows" >/dev/null; then
-  echo "REPORT $R/B-LOCKFIX standards#981: regeneration changes workflow YAML; NO PR"
-  diff -ru --exclude=actions.lock "$tmp/before" "$tmp/.github/workflows" || true
-  exit 0
+  # The generator touched workflow YAML (measured in burble#224: duplicate
+  # management banners appended; bare SHAs de-pinned back to tags). Do not
+  # abort: a lock-only repair still exists iff the ORIGINAL, untouched
+  # workflow YAML and the newly generated actions.lock agree — the scratch-
+  # copy discipline CI-CD-COVERAGE.adoc prescribes under its re-arm trigger.
+  # Restore every mirrored workflow file byte-for-byte, keep ONLY the
+  # regenerated lock, and let the parser-first gates decide.
+  for f in "$tmp/before"/*.yml "$tmp/before"/*.yaml; do
+    [ -f "$f" ] || continue
+    cp -f -- "$f" "$tmp/.github/workflows/$(basename "$f")" || fail 'workflow YAML restore failed'
+  done
+  # A restore cannot repair a file the generator ADDED or DELETED: that is a
+  # real rewrite, still a standards#981 report with no PR.
+  if ! diff -qr --exclude=actions.lock "$tmp/before" "$tmp/.github/workflows" >/dev/null; then
+    echo "REPORT $R/B-LOCKFIX standards#981: generator added or removed workflow files; NO PR"
+    diff -ru --exclude=actions.lock "$tmp/before" "$tmp/.github/workflows" || true
+    exit 0
+  fi
+  [ -f "$lock" ] || fail 'generator removed lockfile'
+  # The decisive question: does the ORIGINAL workflow YAML pass the lock-sync
+  # gate against the newly generated lock? If yes, the YAML change was noise
+  # (banners, comment churn) and a safe lock-only repair exists. If no — the
+  # canonical example: the generator de-pinned a SHA and keyed the lock entry
+  # on the tag, so the untouched YAML's refs are not in the lock — then only a
+  # YAML rewrite could close the gap, and that stays a human decision.
+  set +e
+  verified=$("$CHECKERS_DIR/check-lock-sync.sh" "$tmp" 2>&1); verified_rc=$?
+  pinout=$("$CHECKERS_DIR/check-lock-pins.sh" "$tmp" --offline 2>&1); pin_rc=$?
+  set -e
+  # Never interpret a failed check as a clean result (exit 2 = NO CHECK).
+  [ "$verified_rc" -ne 2 ] && [ "$pin_rc" -ne 2 ] || fail "parser/check failure after YAML restore: $verified $pinout"
+  if [ "$verified_rc" -ne 0 ] || [ "$pin_rc" -ne 0 ]; then
+    echo "REPORT $R/B-LOCKFIX standards#981: generator requires workflow YAML rewrite; NO PR"
+    printf '%s\n' "$verified" "$pinout"
+    exit 0
+  fi
+  yaml_restored=true
+  echo "NOTE $R/B-LOCKFIX generator touched workflow YAML; original YAML restored, new lock verifies against it" >&2
 fi
 [ -f "$lock" ] || fail 'generator removed lockfile'
 # Parser-first verification of generated lock; new unlisted workflows are notes.
@@ -58,7 +94,11 @@ if cmp -s "$tmp/before/actions.lock" "$lock"; then
   echo "REPORT $R/B-LOCKFIX generator produced no lock change; inspect manually: $sync"
   exit 0
 fi
-echo "PROPOSED $R/B-LOCKFIX lock-only diff (workflow YAML unchanged):"
+if [ "$yaml_restored" = true ]; then
+  echo "PROPOSED $R/B-LOCKFIX lock-only diff (workflow YAML restored unchanged):"
+else
+  echo "PROPOSED $R/B-LOCKFIX lock-only diff (workflow YAML unchanged):"
+fi
 diff -u "$tmp/before/actions.lock" "$lock" || true
 if [ "$DRY" = true ]; then echo "DRYRUN $R/B-LOCKFIX no branch or PR"; exit 0; fi
 sha=$(gh api "repos/$O/$R/git/ref/heads/$def" --jq '.object.sha') || fail 'default ref lookup failed'

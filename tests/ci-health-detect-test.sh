@@ -60,13 +60,73 @@ while [ $# -gt 0 ]; do
   esac
 done
 emit() { if [ -n "$jqexpr" ]; then printf '%s' "$1" | jq -r "$jqexpr"; else printf '%s' "$1"; fi; }
+
+# ── Non-lock startup_failure fixtures (SF_SCENARIO) ──────────────────────────
+# One active workflow, governance.yml, whose latest run is a startup_failure by
+# a human actor on the default branch. It calls a cross-repo reusable workflow
+# in hyperpolymath/standards at a full-length SHA. The SCENARIO chooses which
+# of the file-decidable faults the call carries:
+#   perms     caller grants lack a scope the callee requires -> B-PERMS
+#   offbranch the SHA compares diverged against the callee default -> B-OFFBRANCH
+#   deadref   the SHA names no commit at all (compare 404)   -> B-OFFBRANCH
+#   clean     no file-decidable fault -> falls through to the generic aggregate
+#   callee503 the callee fetch fails transiently -> indeterminate, also generic
+caller_yaml() {
+  if [ "${SF_SCENARIO:-none}" = offbranch ] || [ "${SF_SCENARIO:-none}" = clean ] || [ "${SF_SCENARIO:-none}" = callee503 ]; then
+    cat <<'YAML'
+name: governance
+on: schedule
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+jobs:
+  call-standards:
+    uses: hyperpolymath/standards/.github/workflows/governance-reusable.yml@092dedada188f56c5915f74a5fd40aac093742c3
+YAML
+  else
+    cat <<'YAML'
+name: governance
+on: schedule
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  call-standards:
+    uses: hyperpolymath/standards/.github/workflows/governance-reusable.yml@092dedada188f56c5915f74a5fd40aac093742c3
+YAML
+  fi
+}
+callee_yaml() {
+  cat <<'YAML'
+name: governance-reusable
+on: workflow_call
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      security-events: write
+    steps: []
+YAML
+}
+
 case "$endpoint" in
   repos/metadatastician/sample) emit '{"archived":false,"fork":false,"default_branch":"main"}' ;;
-  repos/metadatastician/sample/actions/workflows*) emit '{"total_count":0,"workflows":[]}' ;;
+  repos/metadatastician/sample/actions/workflows/42/runs*)
+    emit "{\"total_count\":1,\"workflow_runs\":[{\"id\":777000,\"path\":\".github/workflows/governance.yml\",\"conclusion\":\"startup_failure\",\"created_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"head_branch\":\"main\",\"actor\":{\"login\":\"hyperpolymath\"},\"triggering_actor\":{\"login\":\"hyperpolymath\"}}]}" ;;
+  repos/metadatastician/sample/actions/workflows*)
+    case "${SF_SCENARIO:-none}" in
+      none) emit '{"total_count":0,"workflows":[]}' ;;
+      *) emit '{"total_count":1,"workflows":[{"id":42,"state":"active"}]}' ;;
+    esac ;;
   repos/metadatastician/sample/git/trees/main*)
     case "${TREE:-plain}" in
       plain) emit '{"tree":[{"path":"README.md","type":"blob"},{"path":"src","type":"tree"}],"truncated":false}' ;;
       burn) emit '{"tree":[{"path":"README.md","type":"blob"},{"path":".github/workflows/ci.yml","type":"blob"}]}' ;;
+      sf) emit '{"tree":[{"path":".github/workflows/governance.yml","type":"blob"},{"path":"README.md","type":"blob"}],"truncated":false}' ;;
       empty) echo "gh: Git Repository is empty. (HTTP 409)" >&2; exit 1 ;;
       other409) echo "gh: Conflict (HTTP 409)" >&2; exit 1 ;;
       forbidden) echo "gh: Resource not accessible by personal access token (HTTP 403)" >&2; exit 1 ;;
@@ -75,6 +135,22 @@ case "$endpoint" in
     esac ;;
   repos/metadatastician/sample/contents/.github/workflows/ci.yml*)
     emit "{\"content\":\"$(printf 'on: [push, pull_request]\njobs: {}\n' | base64 -w0)\"}" ;;
+  repos/metadatastician/sample/contents/.github/workflows/governance.yml*)
+    emit "{\"content\":\"$(caller_yaml | base64 -w0)\"}" ;;
+  repos/metadatastician/sample/contents/.github/workflows/actions.lock*)
+    echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;;
+  repos/hyperpolymath/standards) emit '{"default_branch":"main","archived":false,"fork":false}' ;;
+  repos/hyperpolymath/standards/compare/*)
+    case "${SF_SCENARIO:-none}" in
+      offbranch) emit '{"status":"diverged","ahead_by":1,"behind_by":6}' ;;
+      deadref) echo "gh: No commit found for SHA: 092dedada188f56c5915f74a5fd40aac093742c3 (HTTP 404)" >&2; exit 1 ;;
+      *) emit '{"status":"ahead","ahead_by":2,"behind_by":0}' ;;
+    esac ;;
+  repos/hyperpolymath/standards/contents/.github/workflows/governance-reusable.yml?ref=*)
+    case "${SF_SCENARIO:-none}" in
+      callee503) echo "gh: upstream connect error (HTTP 503)" >&2; exit 1 ;;
+      *) emit "{\"content\":\"$(callee_yaml | base64 -w0)\"}" ;;
+    esac ;;
   *) echo "unexpected endpoint: $endpoint" >&2; exit 1 ;;
 esac
 STUB
@@ -85,6 +161,17 @@ run_detect() {
   local script="$1" scenario="$2"
   out="" err="" rc=0
   out="$(env PATH="$TMP/bin:$PATH" TREE="$scenario" OWNER=metadatastician CHECK_ALLOWLIST=false \
+    bash "$script" sample 2>"$TMP/err")" || rc=$?
+  err="$(cat "$TMP/err")"
+}
+
+# run_detect_sf <detect.sh path> <SF_SCENARIO> -> sets rc, out, err. Drives the
+# non-lock startup_failure diagnoses: the tree fixture is sf (one workflow,
+# no actions.lock), and the scenario chooses the call-graph fault.
+run_detect_sf() {
+  local script="$1" scenario="$2"
+  out="" err="" rc=0
+  out="$(env PATH="$TMP/bin:$PATH" TREE=sf SF_SCENARIO="$scenario" OWNER=metadatastician CHECK_ALLOWLIST=false \
     bash "$script" sample 2>"$TMP/err")" || rc=$?
   err="$(cat "$TMP/err")"
 }
@@ -118,8 +205,17 @@ done
 
 # ── Mutants: prove the assertions can fail ───────────────────────────────────
 # M1 excuses nothing (the pre-fix behaviour); M2 excuses everything.
+#
+# A mutant runs from a MIRRORED layout, not from $TMP directly: detect.sh
+# sources "$HERE/../lib/yaml.sh" at startup for the parser-first diagnoses,
+# so the copy must sit where that relative path still resolves. Flat copies
+# used to die with exit 1 at the source line and the mutation could never be
+# observed — a test that cannot kill a mutant is not a test.
 mutant() { # mutant <name> <sed expression>
-  local name="$1" expr="$2" copy="$TMP/mutant-$1.sh"
+  local name="$1" expr="$2" copy
+  mkdir -p "$TMP/mutants/scripts/ci-health"
+  [ -e "$TMP/mutants/scripts/lib" ] || ln -s "$ROOT/scripts/lib" "$TMP/mutants/scripts/lib"
+  copy="$TMP/mutants/scripts/ci-health/$1-detect.sh"
   sed "$expr" "$DETECT" >"$copy"
   if cmp -s "$copy" "$DETECT"; then bad "mutant $name: expression did not change the script (stale test)"; return 1; fi
   printf '%s' "$copy"
@@ -132,6 +228,96 @@ m1="$(mutant excuse-nothing "s/grep -qF 'Git Repository is empty'/grep -qF 'Git 
 m2="$(mutant excuse-everything "s/grep -qF 'Git Repository is empty'/grep -qF ''/")" && {
   run_detect "$m2" forbidden
   if [ "$rc" -eq 0 ]; then ok "mutant excuse-everything killed (a 403 would have been called healthy)"; else bad "mutant excuse-everything SURVIVED (rc=$rc)"; fi
+}
+
+# ── Non-lock startup_failure classes: B-PERMS / B-OFFBRANCH ─────────────────
+# The 2026-09-29 census read every unclassified default-branch startup_failure
+# banner off the public run pages: 7 of 13 were the standards#451 caller
+# under-grant ("requesting 'actions: read', but is only allowed 'actions:
+# none'"), and the zero-job off-branch pin was measured live in
+# metadatastician-governance run 36361142305. detect.sh now names both from
+# the mirrored files instead of leaving them in the generic bucket. These
+# fixtures pin each behaviour down: firing, silence (no false positives), the
+# indeterminate middle (transient API faults fall back to the generic line,
+# never to a guess), and mutants for both predicates.
+echo "detect.sh — non-lock startup_failure classes"
+
+run_detect_sf "$DETECT" perms
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-PERMS\t' && printf '%s' "$out" | grep -q "actions: read required, none granted"; then
+  ok "firing: caller under-grant is named B-PERMS with the exact missing scope"
+else
+  bad "B-PERMS missing: rc=$rc out=[$out] err=[$err]"
+fi
+if printf '%s' "$out" | grep -qP '\tB-STARTUPFAIL\t'; then
+  bad "B-PERMS firing but the generic B-STARTUPFAIL aggregate still fired (the cause is attributed, it should not double-count)"
+else
+  ok "firing: B-PERMS replaces the generic aggregate for its workflow"
+fi
+if printf '%s' "$out" | grep -qP '\tB-OFFBRANCH\t'; then
+  bad "B-PERMS fixture also emitted B-OFFBRANCH (compare was ahead/0: the pin is an ancestor)"
+else
+  ok "silence: an ancestor pin does not B-OFFBRANCH"
+fi
+
+run_detect_sf "$DETECT" offbranch
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-OFFBRANCH\t' && printf '%s' "$out" | grep -q 'diverged'; then
+  ok "firing: diverged pin is named B-OFFBRANCH with the compare verdict"
+else
+  bad "B-OFFBRANCH missing: rc=$rc out=[$out] err=[$err]"
+fi
+if printf '%s' "$out" | grep -qP '\tB-PERMS\t'; then
+  bad "B-OFFBRANCH fixture also emitted B-PERMS (the caller grant covers the callee requirement)"
+else
+  ok "silence: a sufficient grant does not B-PERMS"
+fi
+
+run_detect_sf "$DETECT" deadref
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-OFFBRANCH\t' && printf '%s' "$out" | grep -q 'does not resolve'; then
+  ok "firing: a ref that names no commit is named B-OFFBRANCH, not left to the lock checker"
+else
+  bad "B-OFFBRANCH (unresolvable) missing: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_sf "$DETECT" clean
+if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -qP '\tB-(OFFBRANCH|PERMS)\t'; then
+  ok "silence: a healthy cross-repo call emits neither new class"
+else
+  bad "false positive in clean scenario: rc=$rc out=[$out]"
+fi
+if printf '%s' "$out" | grep -qP '\tB-STARTUPFAIL\t'; then
+  ok "clean scenario still lands in the generic aggregate (honest: the API cannot name this one)"
+else
+  bad "clean scenario lost the generic B-STARTUPFAIL aggregate: out=[$out]"
+fi
+
+run_detect_sf "$DETECT" callee503
+if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -qP '\tB-(OFFBRANCH|PERMS)\t'; then
+  ok "indeterminate: a transient callee fetch fault emits no guess"
+else
+  bad "callee503 should fail open to the generic aggregate: rc=$rc out=[$out]"
+fi
+if printf '%s' "$out" | grep -qP '\tB-STARTUPFAIL\t'; then
+  ok "indeterminate: the workflow stays counted in the generic aggregate, where a human will look"
+else
+  bad "callee503 dropped the generic B-STARTUPFAIL aggregate: out=[$out]"
+fi
+
+# ── Mutants for the two new predicates ───────────────────────────────────────
+m3="$(mutant accept-diverged 's/^\s*diverged | behind)$/        behind)/')" && {
+  run_detect_sf "$m3" offbranch
+  if ! printf '%s' "$out" | grep -qP '\tB-OFFBRANCH\t'; then
+    ok "mutant accept-diverged killed (a pin off the default line would pass silently)"
+  else
+    bad "mutant accept-diverged SURVIVED (out=[$out])"
+  fi
+}
+m4="$(mutant never-undergrant 's/select(\$req\[\$k\] > \$g)/select($req[$k] > $g and false)/')" && {
+  run_detect_sf "$m4" perms
+  if ! printf '%s' "$out" | grep -qP '\tB-PERMS\t'; then
+    ok "mutant never-undergrant killed (an under-grant would pass silently)"
+  else
+    bad "mutant never-undergrant SURVIVED (out=[$out])"
+  fi
 }
 
 echo

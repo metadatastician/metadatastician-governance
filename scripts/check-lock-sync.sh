@@ -47,7 +47,8 @@
 #       run was refused daily for four days.
 #
 #   UNLISTED workflow, uses external actions     -> run STARTS.
-#       github/codeql-action and the Scorecard reusable call both run on the
+#       The oikosbot and scorecard reusable calls and the secret scanner plus
+#       (until its 2026-09-29 retirement) the local codeql.yml all ran on the
 #       default branch while absent from the lock. So "not onboarded" is a real
 #       gap in coverage, but it is NOT the failure mode, and calling it drift
 #       would be a false alarm of exactly the kind that gets a detector ignored.

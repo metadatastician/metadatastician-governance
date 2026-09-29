@@ -29,21 +29,40 @@ jobs:
       # comes from .oikos.yml (enforcement: warning), not from swallowing
       # exit codes. The former ghcr.io/hyperpolymath/oikos:v2.0.0 pin
       # referenced a tag that never existed on the package.
+      #
+      # The package publishes no version tag: upstream (hyperpolymath/oikosbot)
+      # pushes `latest` plus `sha-<commit>` tags from its CI. What its public
+      # package page does publish is DIGESTS, so the pin here is by digest and
+      # the provenance is recorded rather than guessed: this digest is what
+      # tag `latest` resolved to when this line was written — read off
+      # hyperpolymath/oikosbot → Packages → oikos on 2026-09-29 (`latest`
+      # shared with `sha-2f47a61`, digest shown below). This closes deviation
+      # D-C's form; the deviation's review triggers are unchanged.
       - name: Run OikosBot analysis
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:/work" -w /work \
-            ghcr.io/hyperpolymath/oikos:latest \
+            ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded \
             report /work \
             --format sarif \
             --output /work/results.sarif \
             --config /work/.oikos.yml \
             --eco-threshold 50
 
+      # Print the digest docker actually resolved, so a job log shows the exact
+      # bytes that ran (a digest reference cannot drift, but the record makes
+      # the pull auditable when the log is next readable).
+      - name: Record the resolved image digest
+        run: |
+          docker image inspect \
+            ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded \
+            --format 'resolved RepoDigests: {{json .RepoDigests}}'
+
       - name: Upload SARIF to GitHub Security
         if: always()
-        # Same pin and same provenance as codeql.yml: this line previously read
+        # Same pin and the same estate-provenance comment shape the retired
+        # codeql.yml carried: this line previously read
         # `@1c5b6756… # v4.38.0 (4.38.1 blocked estate-wide; nexia-list#100)`
         # while `1c5b6756…` IS v4.38.1. Now v4.38.0 (b96794f0…).
         #
@@ -54,8 +73,15 @@ jobs:
         # correct pin cannot fix a missing file. The analysis step's own cause
         # is NOT established; see docs/governance/CI-CD-COVERAGE.adoc, which
         # records it as undiagnosed, and D-C in ADOPTION-AND-DEVIATIONS.adoc
-        # for the unpinned `oikos:latest` image that step runs.
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.0 (nexia-list#100)
+        # (image now pinned by digest with recorded provenance; the digest pins
+        # the analysis image, not this upload action).
+        # The comment above says v4.38.0 while the pin below previously read
+        # `2892aa5e19bb…`, which is v4.38.2 (verified 2026-09-29 against the
+        # annotated tag objects: v4.38.0 → b96794f015dfd88f…, v4.38.1 →
+        # 1c5b6756…, v4.38.2 → 2892aa5e19bb…). The estate-approved version for
+        # codeql-action is v4.38.0 (nexia-list#100); re-point the SHA at the
+        # commit the comment has always claimed.
+        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0 (nexia-list#100)
         with:
           sarif_file: results.sarif
           category: oikosbot
