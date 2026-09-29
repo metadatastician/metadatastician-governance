@@ -20,7 +20,7 @@ trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/.github/workflows" "$tmp/before"
 git -C "$tmp" init -q || fail "temporary git init failed"
 git -C "$tmp" remote add origin "https://github.com/$O/$R.git" || fail "temporary origin failed"
-paths=$(gh api --paginate "repos/$O/$R/git/trees/$def?recursive=1" --jq '.tree[]? | select(.type=="blob" and (.path | test("^\\.github/workflows/.*\\.ya?ml$") or .path==".github/workflows/actions.lock")) | .path') || fail 'tree API failed'
+paths=$(gh api --paginate "repos/$O/$R/git/trees/$def?recursive=1" --jq '.tree[]? | select(.type=="blob" and ((.path | test("^\\.github/workflows/.*\\.ya?ml$")) or .path==".github/workflows/actions.lock")) | .path') || fail 'tree API failed'
 while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in .github/workflows/*) ;; *) fail 'unsafe tree path';; esac

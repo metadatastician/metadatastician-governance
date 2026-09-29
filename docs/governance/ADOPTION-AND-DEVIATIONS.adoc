@@ -242,25 +242,25 @@ drifted a long way from the tree:
 | 23
 | 10
 | 12
-| **412**
+| **431**
 
 | Current tree, with the temporary `zz-probe-actions-lock.yml` present
 | 24
 | 11
 | 12
-| 500
+| 519
 |===
 
 The probe is a throwaway instrument (88 comment lines of its own) and is not part
-of the migration surface, so **412 is the number the #1021 proof has to
-preserve**; the 500 figure is recorded only so that whoever runs the census while
+of the migration surface, so **431 is the number the #1021 proof has to
+preserve**; the 519 figure is recorded only so that whoever runs the census while
 the probe still exists is not confused by the difference. The drift from 173 is
 fully accounted for, and every line of it is commentary rather than conversion:
 this repository's workflow comments grew substantially as the CI gates and the
 2026-09-28 incident were documented in-file (`scorecard.yml` now carries 56
 comment lines explaining one pin decision and its confirmation,
 `estate-sweep-watchdog.yml` grew from 20 to 53 explaining what its first run
-taught us). `pages.yml` — which
+taught us, and to 72 explaining what its second week taught it). `pages.yml` — which
 contributed 0 comment lines — was removed, and `ci-health-sweep.yml` was edited
 comment-length-neutrally (40 lines before and after) precisely so that a
 factual correction to one date would not move this table. Nothing was converted,
@@ -273,6 +273,12 @@ estate-blocked v4.38.1 SHA and documented the provenance in-file:
 Measured before #46 landed, the same rows read 370 / 458; the difference is
 exactly #46's 42 annotation lines — commentary, not conversion, and accounted
 for here rather than left for the next reader to re-derive from a stale table.
+
+Re-measured 2026-09-29 (`./scripts/kyaml-census.sh`, parser python/PyYAML 6.0.3)
+after the watchdog gained 19 comment lines recording why the CI-Health Sweep
+failed for eight days (53 to 72; no other YAML file changed): 24 files, 11 step 6,
+12 step 5, **519** with the probe and **431** without it. The 19 lines are again
+commentary, not conversion, and the census still converts nothing.
 --
 * The census converts nothing. `yq -i` and every other blind rewrite stay
   forbidden here until #1021 lands.
@@ -280,5 +286,5 @@ for here rather than left for the next reader to re-derive from a stale table.
 Migration point, so the step is booked rather than remembered: when #1023 rules
 scope and #1021/#1022 have landed, the work here is *step 5 for the twelve
 estate-authored YAML files and step 6 for the ten workflows, if ruled in*, with
-the census output as the work list and the comment count (412) as the acceptance
+the census output as the work list and the comment count (431) as the acceptance
 measure.
