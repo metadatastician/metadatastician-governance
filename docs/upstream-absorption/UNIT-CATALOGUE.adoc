@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Unit catalogue — MetaManifold-WebUI absorption menu
+:toc:
+:toclevels: 2
+
+*Read this with* link:UPSTREAM-SYNC-STATE.md[UPSTREAM-SYNC-STATE.md] (the
+six merge conditions) and link:OWNER-FEEDBACK.md[OWNER-FEEDBACK.md] (what he
+has already said yes and no to).
+
+Every row is one branch, one PR, one decision. Units are **stacked**: each is
+branched from current upstream `main` and re-applies its own file set, so any
+unit can be refused without disturbing the others that have already landed.
+Where two units genuinely depend on each other the dependency is named.
+
+*Verdict key*
+
+`ON HIS LIST`:: named in his condition 2 — send it, it is expected.
+`ASK FIRST`:: not on the list; needs an issue and a yes (his condition 2, last
+line).
+`REFUSED`:: he has already said no. Listed only so it is not re-sent.
+
+== Menu at a glance
+
+[cols="1,2,3,1,1",options="header"]
+|===
+| ID | Theme | Unit | Size | Verdict
+
+| 01 | statistics | `stats-config-core` | 2 files / ~2,230 l | ON HIS LIST
+| 02 | statistics | `stats-numeric-policy` | 1 / 569 | ON HIS LIST
+| 03 | statistics | `stats-scaling-offsets` | 1 / 503 | ON HIS LIST
+| 04 | statistics | `stats-estimation` | 1 / 1,081 | ON HIS LIST
+| 05 | statistics | `stats-exact-summaries` | 1 / 354 | ON HIS LIST
+| 06 | statistics | `stats-ilr-basis` | 1 / 1,318 | ASK FIRST
+| 07 | statistics | `stats-zero-replacement` | 1 / 778 | ASK FIRST
+| 08 | statistics | `stats-dispersion` | 1 / 1,163 | ASK FIRST
+| 09 | statistics | `stats-clade-cumulus` | 1 / 510 | ASK FIRST
+| 10 | statistics | `stats-diversity-1x1` | 2 / ~1,242 | ASK FIRST (overlaps #8)
+| 11 | statistics | `stats-wiring` | 1 / 66 | ON HIS LIST
+| 12 | statistics | `stats-tests` | 15 files | ON HIS LIST
+| 13 | statistics | `stats-docs` | 16 files | ON HIS LIST (minimum only)
+| 14 | ci | `ci-julia-tests-rename` | 1 / 2-line | ON HIS LIST — closes #14
+| 15 | ci | `ci-fastqc-multiqc` | 1 (+pins) | ON HIS LIST — closes #15
+| 16 | ci | `ci-retry-pinned-downloads` | 1 / ~12 l | ON HIS LIST (#11 redux)
+| 17 | ci | `ci-proofs-workflow` | 2 files | ASK FIRST
+| 18 | doi | `doi-core` | 6 / 1,151 | ASK FIRST
+| 19 | doi | `doi-publication-surface` | 3 / 522 | ASK FIRST — collides with his `PublicationTables*`
+| 20 | doi | `doi-schemas` | 4 files | ASK FIRST
+| 21 | doi | `doi-tests` | 16 files | ASK FIRST
+| 22 | doi | `doi-workflow-bench` | 5 files | ASK FIRST
+| 23 | proofs | `proofs-agda-core` | ~30 files | ASK FIRST
+| 24 | proofs | `proofs-agda-evidence` | 6 files | ASK FIRST
+| 25 | proofs | `proofs-harness` | 9 files | ASK FIRST
+| 26 | types | `type-theory-receipts` | 6 files | ASK FIRST
+| 27 | backend | `backend-epistemic` | 1 / 593 | ASK FIRST
+| 28 | backend | `backend-core-tests` | 26 files | ASK FIRST
+| 29 | bench | `bench-julia` | 22 files | ON HIS LIST (#10 redux)
+| 30 | frontend | `frontend-tests` | 23 files | WANTED (he asked for these)
+| 31 | frontend | `frontend-bench` | 3 files | ON HIS LIST (#10 redux)
+| 32 | tooling | `repo-tooling` | ~14 files | ASK FIRST
+| 33 | tooling | `kyaml-pilot` | 4 files | ASK FIRST
+| 34 | — | `ui-genie-removal` | 11 files | REFUSED — do not send
+|===
+
+== Theme 1 — Statistics
+
+The maintainer: _"Meet all six and I will review it properly, including real
+feedback on the statistics work, which is the part we actually want."_ These
+are the units to send first and in order.
+
+=== 01 `stats-config-core` — ON HIS LIST
+`src/analysis/AnalysisConfig.jl` (2,217 l, new), `src/analysis/analysis_config.jl` (13 l, new).
+The configuration type that the rest of the cluster is written against. Send
+first; nothing else compiles without it.
+
+=== 02 `stats-numeric-policy` — ON HIS LIST
+`src/analysis/numeric_policy.jl` (569 l, new).
+Numeric tolerances and the refuse-not-guess policy: a method either runs a
+real model or returns "Not Implemented".
+
+=== 03 `stats-scaling-offsets` — ON HIS LIST
+`src/analysis/scaling.jl` (503 l, new).
+TSS / CSS / TMM / RLE offsets. Note his correction on issue #12: these are
+*new work*, not a fix to anything of his — say so in the description.
+
+=== 04 `stats-estimation` — ON HIS LIST
+`src/analysis/estimation.jl` (1,081 l, new).
+Real `MASS::glm.nb` and linear models with library-size offsets. Depends on 01, 02, 03.
+
+=== 05 `stats-exact-summaries` — ON HIS LIST
+`src/analysis/exact_summaries.jl` (354 l, new).
+Exact descriptive summaries — no rounding, no estimation. Depends on 01.
+
+=== 06–09 compositional statistics — ASK FIRST
+`06 stats-ilr-basis` (`ilr_basis.jl`, 1,318 l), `07 stats-zero-replacement`
+(`zero_replacement.jl`, 778 l), `08 stats-dispersion` (`dispersion.jl`,
+1,163 l), `09 stats-clade-cumulus` (`clade_cumulus.jl`, 510 l).
+Not named in his condition 2 but they are the same kind of work as 01–05, so
+they are the natural second tranche once the first has been reviewed.
+
+=== 10 `stats-diversity-1x1` — ASK FIRST
+`src/analysis/diversity.jl` (branch 139 l vs upstream 270 l), `src/analysis/analysis.jl` (1,103 vs 1,440).
+*Handle with care.* Both files are **shorter** on the branch than upstream:
+the branch predates his own changes to them. Re-apply the 1x1-matrix
+edge-case fix onto the current upstream text; do not ship the file whole.
+This is the unit most likely to be an accidental revert.
+
+=== 11 `stats-wiring` — ON HIS LIST
+`src/MetaManifold.jl` (66 l vs 36 l upstream) — the `include`s the cluster
+needs. Must land with, or immediately after, 01.
+
+=== 12 `stats-tests` — ON HIS LIST
+15 unit tests: `test_analysis`, `test_analysis_config`,
+`test_analysis_config_milestone3`, `test_analysis_duckdb`, `test_dispersion`,
+`test_diversity`, `test_estimation`, `test_exact_summaries`, `test_execution`,
+`test_ilr_basis`, `test_numeric_boundaries`, `test_numeric_policy`,
+`test_scaling`, `test_zero_replacement`, `test_read_conservation`.
+His condition: _"the tests covering exactly the above"_. Split per theme if
+he prefers — these are individually cherry-pickable.
+
+=== 13 `stats-docs` — ON HIS LIST (minimum only)
+`docs/statistics/**` — method catalogue, numeric contracts, zero handling,
+method-condition sheets, behavioural-change note.
+His condition says *minimum documentation*. Send the method catalogue and
+numeric contracts; leave the rest on the fork until asked.
+
+== Theme 2 — CI
+
+=== 14 `ci-julia-tests-rename` — ON HIS LIST — closes upstream #14
+`.github/workflows/ci.yml`, two-line edit: `name: Julia ${{ matrix.julia-version }} / ${{ matrix.os }}` → `name: Julia tests`.
+He confirmed this one himself on #12: _"a pin bump would indeed deadlock every
+PR."_ The smallest possible yes.
+
+=== 15 `ci-fastqc-multiqc` — ON HIS LIST — closes upstream #15
+Install FastQC and MultiQC so the prefilter QC stage is exercised. He verified
+the finding: _"FastQC and MultiQC appear zero times in `ci.yml` while eight
+files under `src/` reference them."_
+
+=== 16 `ci-retry-pinned-downloads` — ON HIS LIST
+Retry logic around the pinned downloads. His words on #11: _"Retry logic is a
+dozen lines of `ci.yml`. Again, please rebase on main first."_ Twelve lines,
+re-anchored.
+
+=== 17 `ci-proofs-workflow` — ASK FIRST
+`.github/workflows/proofs.yml`, `scripts/check-proofs.sh`.
+Runs the Agda proof suite. Only worth sending if 23–25 are wanted.
+
+== Theme 3 — DOI / Zenodo minting
+
+Recent work, not on his list, and **one unit collides with his newest
+feature** — read 19 carefully before sending anything in this theme.
+
+=== 18 `doi-core` — ASK FIRST
+`src/doi/`: `AnalysisStore.jl` (95), `Bundles.jl` (268), `Publications.jl`
+(399), `Storage.jl` (103), `Web.jl` (88), `Zenodo.jl` (198).
+Bundle assembly, Zenodo deposition, storage.
+
+=== 19 `doi-publication-surface` — ASK FIRST, COLLISION
+`src/doi/assets/publication.css` (45), `src/doi/assets/publication.js` (253),
+`src/server/routes/doi.jl` (224).
+Upstream `main` now carries **his** publication-table builder
+(`frontend/src/components/PublicationTables*`, added 2026-09-28). Two
+publication surfaces cannot both be right. Open an issue describing the
+overlap before sending; do not let this unit delete his files.
+
+=== 20 `doi-schemas` — ASK FIRST
+`config/schemas/doi_publication.ncl`, `config/schemas/doi_publication.schema.json`,
+`config/templates/doi_publication_chora.deed` (+ the matching test).
+Contracts for the publication bundle — the same contracts/DTO shape he said
+he _would_ be happy to see.
+
+=== 21 `doi-tests` — ASK FIRST
+`test/doi/**` (16 files: Julia tests, JS schema/citation/linker tests,
+fixtures, vendored CFF 1.2.0 schema, a Nickel check).
+Test-only, low risk — a good first unit for this theme if he wants to look at
+the shape before the code.
+
+=== 22 `doi-workflow-bench` — ASK FIRST
+`.github/workflows/doi.yml`, `scripts/link-doi.sh`, `bench/doi/benchmark.jl`,
+`bench/doi/compare.js`.
+
+== Theme 4 — Proofs and type theory
+
+Not on his list. Offered because it is the "types for security and quality"
+work he has not yet ruled on.
+
+=== 23 `proofs-agda-core` — ASK FIRST
+`proofs/agda/**` excluding `Evidence/`: ILR (Comb, Contrast, Integer,
+Invariance, Kernel, Orthonormal, SBP), `ExactCounts`, `Proportions`,
+`DecimalRounding`, `PermutationTest`, `BenjaminiHochberg`, `Composition/*`,
+`Prelude`, `All`, and the four `reject/*` specimens that record what is
+*not* provable.
+
+=== 24 `proofs-agda-evidence` — ASK FIRST
+`proofs/agda/MetaManifold/Evidence/*` — Decision, Echo, Residual, Signed,
+Warrant, Prelude. Signed evidence receipts.
+
+=== 25 `proofs-harness` — ASK FIRST
+`proofs/PROOF-STATUS.md`, `HANDOFF.md`, `bootstrap.sh`,
+`residue/*` (4: BH, exact-counts, out-of-scope, toolchain),
+`tests/axiom-audit.sh`, `tests/gate-selftest.sh`, `vectors/evidence_vectors.json`.
+
+=== 26 `type-theory-receipts` — ASK FIRST
+`type-theory/**` (6 files: README, DESIGN, three receipt examples, bridge index).
+
+== Theme 5 — Backend core
+
+=== 27 `backend-epistemic` — ASK FIRST
+`src/core/epistemic.jl` (593 l, new). Epistemic status tracking — what is
+measured, what is inferred, what is refused.
+
+=== 28 `backend-core-tests` — ASK FIRST
+23 unit tests, listed explicitly: config, config_hashing, databases(_library),
+composition(_library), categories, duckdb_store, funcdb, install_pins, jobs,
+log, merge_taxa(+mappings), migrate_composition, primers_library, project,
+provenance, r_runtime, routes, tools, validation, dada2_commands.
+Test-only. `test_provenance.jl` and `test_config_hashing.jl` carry the
+deterministic-output claims.
+
+*Do not define this unit as `test/unit`.* Upstream has added eight test files
+the branch does not carry (`test_determinism`, `test_heatmap`,
+`test_phylogeny`, `test_publication_tables`, `test_remote_stages`,
+`test_report_funnel`, `test_sample_reads`, `test_trees`); a directory-wide
+pathspec would arrive as their deletion.
+
+=== 14 / 15 — one file, two PRs
+Both units edit `.github/workflows/ci.yml`. Send 14 first; when it lands,
+re-apply 15 on the new `main` rather than stacking it on 14's branch, so the
+second PR is a two-line diff against his current file.
+
+== Theme 6 — Benchmarks
+
+=== 29 `bench-julia` — ON HIS LIST
+`bench/**` additions and baselines. His words on #10: _"Benchmarks are worth
+having, but not as a 293-file conflicting bundle. Please provide `bench/` +
+`frontend/bench/` only, but rebased on main."_
+*Check before sending:* upstream already has a `bench/` tree (the
+`layer1_mock_recovery` files are modified, not added), so re-apply rather
+than overwrite.
+
+=== 31 `frontend-bench` — ON HIS LIST
+`frontend/bench/` (3 files) — paired with 29, as he asked.
+
+== Theme 7 — Frontend tests
+
+=== 30 `frontend-tests` — WANTED
+`frontend/tests/**` (23 files: unit, integration, e2e, fixtures, gates).
+He asked for these directly on #7: _"I would be happy to see the typed
+`contracts/DTOs` and the new work under `frontend/tests/` in a future PR."_
+Test-only, and the fastest goodwill available.
+
+== Theme 8 — Tooling and hygiene
+
+=== 32 `repo-tooling` — ASK FIRST
+`Justfile`, `mise.toml`, `.editorconfig`, `.envrc`, `.gitmessage`,
+`guix.scm`, `channels.scm`, `Containerfile`, `stapeln.toml`, `.bun-version`,
+`scripts/check-*.sh`, `scripts/gen-tools-yml.sh`, `.githooks/**`.
+Pure additions — upstream has none of these, so they land without conflict.
+Also the least interesting thing he could be asked to review; send only if
+asked.
+
+=== 33 `kyaml-pilot` — ASK FIRST
+`config/kyaml/drift.txt`, `scripts/kyaml/KYAML.jl`, `test/unit/test_kyaml.jl`.
+
+== Theme 9 — Refused
+
+=== 34 `ui-genie-removal` — REFUSED
+`ui/**` (11 files) and `.github/workflows/ui.yml`.
+He rejected the Genie direction on #7 and repeated it on #13: _"delete `ui/`
+and the `Genie/Stipple/StippleUI` dependencies."_ The directory is already
+gone from the working set — this row exists so nobody re-adds it.
+Note the root `Project.toml` is clean: it depends on Oxygen, not Genie. Only
+`ui/Project.toml` carries Genie 6 / Stipple 1 / StippleUI 1.

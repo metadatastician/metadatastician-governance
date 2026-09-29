@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+= Upstream absorption register — MetaManifold-WebUI
+:toc:
+
+*Status:* live menu. Nothing here is a claim that anything has been accepted
+upstream. Every line is a proposal until the maintainer says otherwise.
+
+== What this is
+
+`JoshuaJewell/MetaManifold-WebUI` (upstream, AGPL-3.0, Julia + R + TypeScript)
+is worked on through the `hyperpolymath/MetaManifold-WebUI` fork. Fork and
+upstream share exactly one commit — the initial commit — so the fork's work
+arrives upstream as *add/add conflicts* rather than as a diff. The first
+attempts to hand it over were monolithic: 319 files, then 561, then 574. The
+maintainer rejected all of them on sight and said so in writing.
+
+This directory is the replacement for that approach: the work is cut into
+small, named, ordered units that can be accepted or refused one at a time,
+over weeks, without anyone having to read a quarter of a million lines to
+decide.
+
+== The five documents
+
+[cols="1,3"]
+|===
+| Document | What it holds
+
+| link:UPSTREAM-SYNC-STATE.md[UPSTREAM-SYNC-STATE.md]
+| The measured divergence (SHAs, ahead/behind, deleted paths) and the six
+  merge conditions the maintainer set out. Read before pushing anything.
+
+| link:UNIT-CATALOGUE.adoc[UNIT-CATALOGUE.adoc]
+| The menu: ~30 units, each with its theme, aspect, exact paths, size, risk,
+  dependency and the maintainer's known verdict.
+
+| link:OWNER-FEEDBACK.md[OWNER-FEEDBACK.md]
+| What the maintainer has actually said — accepted, refused, and what he
+  asked to see. Quoted, with links, so nothing has to be re-guessed.
+
+| link:EXCLUSIONS-AND-PARKED.md[EXCLUSIONS-AND-PARKED.md]
+| What is deliberately *not* in the menu: Genie/Stipple, the Marid+Vue
+  frontend migration, licence metadata, and the 102 stale deletions.
+
+| link:MAKE-UNITS.sh[MAKE-UNITS.sh]
+| Regenerates and verifies the unit path lists against live refs.
+|===
+
+== The rule this directory exists to enforce
+
+No unit may be sent unless all six of the maintainer's conditions hold. They
+are quoted in full in `UPSTREAM-SYNC-STATE.md`; in short:
+
+. Branched from current upstream `main`, work re-applied on top — no merge
+  commits, `behind_by: 0`, `mergeable: MERGEABLE`.
+. Only the listed scope; anything else stays on the fork.
+. No `ui/`, no Genie, Stipple or StippleUI.
+. Licence metadata untouched.
+. CI runs and passes on the branch.
+. The PR description says what it does, which issues it closes, how to run
+  the tests, and the Julia / R / bun versions tested against.
+
+A unit that cannot meet all six is not ready; it goes back in the menu as
+`blocked`, not into a PR.
+
+== Keeping up
+
+The register is the thing that rots, so it is re-measured rather than
+believed. `MAKE-UNITS.sh` re-derives every number in `UPSTREAM-SYNC-STATE.md`
+from live refs; run it after any upstream move and commit the result. New
+work becomes a new unit row with an ID, not an edit to an existing one, so
+the maintainer's accept/refuse record stays stable.
