@@ -24,6 +24,7 @@ This repository is the organisation-wide governance home for The Metadatastician
 * link:docs/governance/CI-CD-COVERAGE.adoc[CI/CD coverage and gaps] — what runs, what does not, and why
 * link:TEST-NEEDS.adoc[Test needs and evidence status] — which test categories are satisfied, thin, or N/A
 * link:docs/governance/CHANGE-PROCEDURE.adoc[Policy change and challenge procedure]
+* link:docs/upstream-absorption/README.adoc[Upstream absorption register] — the MetaManifold-WebUI fork↔upstream menu: sync state, owner feedback, and the unit catalogue
 
 == Architecture decisions
 
