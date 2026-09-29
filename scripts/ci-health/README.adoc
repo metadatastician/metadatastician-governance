@@ -111,7 +111,11 @@ REST -- `gh api repos/OWNER/REPO/check-runs/<job-id>/annotations` -- so the caus
 is readable even where the job log is not, and `estate-sweep-watchdog.yml`
 quotes them in its comment on the stale-report issue. At most seven targets are
 annotated individually (GitHub keeps ten per step, and the runner adds one of
-its own); the log lists all of them.
+its own); the log lists all of them. When the failed target is `@organization`
+with HTTP 403 (`Actions-permissions query failed`), verify that
+`METADATASTICIAN_DISPATCH_PAT` carries classic `repo`, `workflow`, and
+`admin:org` scopes; when a repository target is named, inspect the quoted `gh:`
+status for that repository rather than assuming a token-scope fault.
 * The tracking-issue body is capped at `MAX_ISSUE_BODY_BYTES` (default 60000):
 GitHub refuses an issue body over 65,536 characters, and that refusal would
 otherwise be the sweep's last act, after live remediation. A capped body is cut
