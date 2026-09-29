@@ -298,9 +298,18 @@ if [ "$(wc -c <"$rep")" -gt "$max_body" ]; then
     "$(wc -c <"$pub")" "$(wc -c <"$rep")" >>"$pub"
 fi
 
-# Upsert the rolling tracking issue when unhealthy. A complete, finding-free
-# sweep closes the existing issue instead of perpetually rewriting/reopening it.
-num=$(gh issue list --repo "$O/$IREPO" --state open --search "$TITLE in:title" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+# Upsert the ONE rolling tracking issue. A complete, finding-free sweep closes
+# it; the next unhealthy sweep re-opens that same issue rather than opening a
+# new one.
+#
+# That last clause is the fix. The search used to be `--state open`, so the
+# healthy path closed the report and the next unhealthy sweep — finding no OPEN
+# issue under the title — opened a fresh one. Eight weeks produced four
+# identically titled reports (#14, #23, #24, #30), each looking current and
+# none of them closed as a duplicate, which is how a stale report stayed
+# visible for four days during the September outage. Searching every state and
+# re-opening the newest match makes the issue set converge on one.
+num=$(gh issue list --repo "$O/$IREPO" --state all --search "$TITLE in:title" --json number --jq '.[0].number // empty' 2>/dev/null || true)
 if [ ! -s "$findings" ]; then
   if [ -n "${num:-}" ]; then
     gh issue comment "$num" --repo "$O/$IREPO" --body "Closing automatically: a complete sweep of ${#REPOS[@]} in-scope repositories returned no active CI-health findings." >/dev/null
@@ -310,6 +319,11 @@ if [ ! -s "$findings" ]; then
     echo "healthy: no tracking issue required"
   fi
 elif [ -n "${num:-}" ]; then
+  # Re-open rather than replace: the same issue number, carrying the whole
+  # history, is worth more than a clean-looking new thread.
+  if [ "$(gh issue view "$num" --repo "$O/$IREPO" --json state --jq .state 2>/dev/null || echo OPEN)" = "CLOSED" ]; then
+    gh issue reopen "$num" --repo "$O/$IREPO" >/dev/null && echo "reopened tracking issue #$num"
+  fi
   gh issue edit "$num" --repo "$O/$IREPO" --body-file "$pub" >/dev/null && echo "updated issue #$num"
 else
   gh issue create --repo "$O/$IREPO" --title "$TITLE" --body-file "$pub" >/dev/null && echo "opened tracking issue"
