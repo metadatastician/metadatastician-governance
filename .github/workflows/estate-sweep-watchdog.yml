@@ -33,6 +33,16 @@
 # fault that no longer existed, which is the same misdirection that made the
 # original outage take four days to diagnose. The wording is now derived from
 # the measurements and the guidance branches on them.
+#
+# ── What its second week taught us (2026-09-29) ──────────────────────────────
+# The sweep then failed for eight days for a reason the guidance never named:
+# one empty repository (`gh: Git Repository is empty. (HTTP 409)`), which
+# detect.sh treated as an instrument failure. The checklist below had sent two
+# diagnoses after the token scope instead. The evidence was in the job log the
+# whole time, but a job log is a redirect to blob storage that many readers of
+# this issue cannot fetch, and it did not even name the repository. So the
+# sweep now states its refusal as check-run ANNOTATIONS (plain REST), and this
+# workflow quotes them in the issue: the run's own words outrank a checklist.
 name: Estate Sweep Watchdog
 
 on:
@@ -42,6 +52,7 @@ on:
 
 permissions:
   actions: read
+  checks: read       # check-run annotations: what a failed run said about itself
   contents: read
   issues: write
 
@@ -133,6 +144,43 @@ jobs:
               ;;
           esac
 
+          # ── What the failing run itself reported ───────────────────────────
+          # A failed job's LOG is a redirect to blob storage that many readers of
+          # this issue cannot fetch, which is why diagnoses of this sweep were
+          # reasoned from run durations. Its ANNOTATIONS are plain REST, and
+          # sweep.sh states its refusal there: which target failed and why. Quote
+          # them instead of sending the reader to guess from a checklist. Best
+          # effort by construction: nothing here may stop the issue being opened,
+          # which is this workflow's whole job.
+          run_evidence() {
+            local rid=$1 job_ids job
+            job_ids=$(gh api "repos/${REPO}/actions/runs/${rid}/jobs?per_page=100" \
+              --jq '.jobs[] | select(.conclusion=="failure" or .conclusion=="timed_out" or .conclusion=="cancelled") | .id') || return 1
+            for job in $job_ids; do
+              gh api "repos/${REPO}/check-runs/${job}/annotations?per_page=100" \
+                --jq '.[] | select(.annotation_level=="failure" or .annotation_level=="warning") | "\(.annotation_level): \(if (.title // "") == "" then "" else .title + " — " end)\(.message)"' || return 1
+            done
+          }
+          evidence_block=""
+          case "$latest_conclusion" in
+            startup_failure | success | none | null | "") ;;
+            *)
+              if evidence=$(run_evidence "$latest_id" 2>/dev/null); then
+                # Quoted, not interpreted: bounded, and unable to close its own fence.
+                evidence=$(printf '%s\n' "$evidence" | tr -d '\r`' | sed 's/~~~/---/g' | cut -c1-600 | head -n 30 || true)
+                if [ -n "$evidence" ]; then
+                  evidence_block=$(printf '%s\n\n~~~text\n%s\n~~~' \
+                    "**What that run reported about itself** — its own check-run annotations, which the API serves even when the job log is out of reach. Where they name a cause, they outrank the checklist below:" \
+                    "$evidence")
+                else
+                  evidence_block="**What that run reported about itself:** no failure annotation was recorded beyond its exit status."
+                fi
+              else
+                evidence_block="**What that run reported about itself:** its annotations could not be read from here (that needs \`checks: read\`); read the run page instead."
+              fi
+              ;;
+          esac
+
           # Guidance follows the observation, so nobody is sent down the branch
           # that does not apply to what actually happened.
           if [ "$latest_conclusion" = "startup_failure" ]; then
@@ -169,10 +217,11 @@ jobs:
 
           1. **The honest-refusal guard.** `scripts/ci-health/sweep.sh` exits 2 with
           "Detection was incomplete for N repo(s); refusing remediation and a false
-          health report" when any `detect.sh` call fails. That is the design working,
-          not a bug: it will not publish a health report it could not fully compute,
-          and it exits *before* the tracking-issue upsert — which is why the report
-          issue goes stale instead of showing partial data.
+          health report" when any `detect.sh` call fails, and it names each failed
+          target and why in its annotations (quoted above when they could be read).
+          That is the design working, not a bug: it will not publish a health report
+          it could not fully compute, and it exits *before* the tracking-issue upsert
+          — which is why the report issue goes stale instead of showing partial data.
           2. **Token scope.** `detect.sh @organization` reads the org Actions policy
           and emits `E-INSTRUMENT` (exit 2) on a 403. The sweep's PAT needs classic
           `repo` + `workflow` + `admin:org`, as `.github/workflows/ci-health-sweep.yml`
@@ -197,6 +246,8 @@ jobs:
           [\`${latest_id}\`](https://github.com/${REPO}/actions/runs/${latest_id}),
           created ${latest_created:-unknown}, conclusion
           \`${latest_conclusion:-none}\` — it ${observed}.
+
+          ${evidence_block}
 
           ${guidance}
 
