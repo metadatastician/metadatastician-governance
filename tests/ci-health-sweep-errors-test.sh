@@ -139,6 +139,10 @@ make_seam_case() { # make_seam_case <name> <sweep.sh> <detect.sh>
   cp "$3" "$h/detect.sh"
   cp "$ROOT/scripts/ci-health/action-superset.txt" "$h/action-superset.txt"
   chmod +x "$h/sweep.sh" "$h/detect.sh"
+  # detect.sh sources ../lib/yaml.sh relative to itself at startup (the
+  # parser-first diagnoses), so the sandbox layout must carry the library too.
+  mkdir -p "$d/scripts/lib"
+  cp "$ROOT/scripts/lib/yaml.sh" "$d/scripts/lib/yaml.sh"
   printf '%s' "$d"
 }
 

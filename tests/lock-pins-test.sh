@@ -165,6 +165,17 @@ fi
 env YAML_PARSER_KIND=none SKIP_PIN_RESOLUTION=1 bash "$CHECK" "$d" >/dev/null 2>&1
 if [ $? -eq 2 ]; then ok "parse-only run with no parser: still exit 2"; else bad "parse-only run with no parser did not fail closed"; fi
 
+# ── --offline: the long-form flag spellings callers pass positionally ──────
+# lockfix.sh drives the pin gate with `--offline` after a standards#981 YAML
+# restore; the flag must behave exactly like SKIP_PIN_RESOLUTION=1.
+env PATH="$TMP/bin:$PATH" STUB_CODE=404 bash "$CHECK" "$d" --offline >"$TMP/out" 2>"$TMP/err"
+rc=$?
+if [ "$rc" -eq 0 ] && grep -q 'resolution skipped' "$TMP/out"; then
+  ok "--offline flag: exit 0, API not consulted"
+else
+  bad "--offline flag: rc=$rc"; cat "$TMP/out"
+fi
+
 # ── Silence fixture: no lockfile is not a failure ──────────────────────────
 d="$TMP/nolock"; mkdir -p "$d"
 run_check "$d" STUB_CODE=200; rc=$?

@@ -218,6 +218,14 @@ while IFS=$'\t' read -r repo cls _sev _detail; do
     # carries the exact refs and the file stays with the repo's owners.
     echo "REPORT $repo/$cls: see the finding text (regenerate actions.lock with gh actions-lock; review the diff)"
     ;;
+  B-OFFBRANCH | B-PERMS)
+    # Diagnosed from the caller/callee files, not auto-applied: re-pointing a
+    # caller at a different commit or widening its permissions are human
+    # judgements about trust (T-1). The finding carries the exact pinned ref,
+    # the compare verdict, and the missing scope(s), so no banner needs
+    # reading; no file is mutated from a sweep.
+    echo "REPORT $repo/$cls: cross-repo reusable-workflow fault identified; see the finding text (re-point the caller / grant the missing scope)"
+    ;;
   D-BURN)
     if [ "$burned" -lt "$MAXPR" ]; then
       out=$(OWNER="$O" "$HERE/remediate.sh" "$repo" "$cls" "$DRY" || true)
@@ -243,12 +251,12 @@ fi
   grep -P '\tA-BILLING\t' "$findings" | awk -F'\t' '{print "- **"$1"** — "$4}' || true
   grep -qP '\tA-BILLING\t' "$findings" || echo "- _none_"
   echo ""
-  echo "### 🟠 B — allow-list / lockfile drift / actor refusal / startup_failure"
-  grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|ACTOR|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
+  echo "### 🟠 B — allow-list / lock & pin drift / reusable-pin & permission faults / actor refusal / startup_failure"
+  grep -P '\tB-(ALLOWLIST|LOCKFILE|BADPIN|OFFBRANCH|PERMS|ACTOR|STARTUPFAIL)\t' "$findings" | awk -F'\t' '{print "- "$1" ("$2"): "$4}' || true
   grep -qP '\tB-' "$findings" || echo "- _none_"
   echo ""
   echo "### B-LOCKFIX proposals and decisions"
-  echo "B-LOCKFIX is dry-run unless ENABLE_LOCKFIX_PRS=true is explicitly set. B-BADPIN is report-only. B-ACTOR requires owner settings (Settings → Actions); no repository change applies."
+  echo "B-LOCKFIX is dry-run unless ENABLE_LOCKFIX_PRS=true is explicitly set. B-BADPIN, B-OFFBRANCH and B-PERMS are report-only (re-pointing a caller or widening a grant is a human trust decision; the finding names the ref and scope). B-ACTOR requires owner settings (Settings → Actions); no repository change applies."
   echo "\`\`\`text"
   cat "$lock_report"
   echo "\`\`\`"

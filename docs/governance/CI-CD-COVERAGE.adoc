@@ -172,9 +172,10 @@ at run creation. A ref the lock does not record under that workflow's own path
 makes GitHub refuse the run — `startup_failure`, zero jobs, no log, nothing in
 REST or GraphQL. So a workflow whose job is to *detect* that fault cannot depend
 on the mechanism it detects. `ci.yml`, `lock-sync-gate.yml`,
-`estate-sweep-watchdog.yml`, `labels.yml`, `label-triage.yml` and the temporary
-`zz-probe-actions-lock.yml` therefore check out by calling `git` inside a `run:`
-step. Do not add a `uses:` to them.
+`estate-sweep-watchdog.yml`, `labels.yml` and `label-triage.yml` therefore check
+out by calling `git` inside a `run:` step. Do not add a `uses:` to them. (The
+temporary `zz-probe-actions-lock.yml` followed the same rule while it existed;
+it was retired 2026-09-29 with its question answered.)
 
 == What runs
 
@@ -227,9 +228,14 @@ assumed.
 
 | `codeql.yml`
 | PR, push main, cron
-| yes on `main`
+| *removed 2026-09-29*
 | CodeQL, pinned to `github/codeql-action` at the estate-approved 4.38.0. Run
-`36361141951` started and failed inside *Perform CodeQL Analysis*.
+`36361141951` started and failed inside *Perform CodeQL Analysis*; the job-log
+read of run `36551067938` showed all queries evaluating and the rejection at
+SARIF submission, because the repository's CodeQL is on GitHub **default
+setup** — the advanced configuration file could never pass while both existed,
+and it was retired with that cause recorded. Code scanning coverage continues
+via the default setup.
 
 | `secret-scanner.yml`
 | PR, push main
@@ -258,12 +264,22 @@ OikosBot analysis*.
 
 | `zz-probe-actions-lock.yml`
 | PR, dispatch
-| *refused while an agent pushes it*
-| TEMPORARY, read-only. Exists to answer one question — can a GitHub runner
-obtain and run `gh actions-lock`? — which cannot be answered from the authoring
-environment. Its one run so far, `36397686847` on PR #44, was refused by cause 2,
-so the question is still open and needs a permitted actor to re-run it. Delete
-the file once the answer is recorded.
+| *retired 2026-09-29 — question answered*
+| TEMPORARY, read-only. Its question — can a GitHub runner obtain and run
+`gh actions-lock`? — was answered on 2026-09-29 by the CI-Health Sweep itself:
+on the `ubuntu-latest` runner the sweep step
+`gh extension install github/gh-actions-lock --pin v0.1.6` completes — the
+release-asset fetch that the sandbox cannot make — and the sweep proceeds
+through detection to its report stage (the egress failure measured here is a
+sandbox restriction exactly as the probe header supposed). What remains
+unproven is only the read-back of a *generated lock* through `lockfix.sh`,
+which the README records openly; that gap does not need a probe file to gate
+it, since every B-LOCKFIX proposal prints its diff in the job summary before
+any branch exists. The file was
+deleted 2026-09-29 with this answer recorded; its first run attempt on PR #44
+(`36397686847`) had been refused by cause 2 — the actor, not the tool. Its
+removal also retires the only remaining `zz-*` workflow, and the KYAML census
+row for it is updated in `ADOPTION-AND-DEVIATIONS.adoc`.
 
 | `pages.yml`
 | —
@@ -349,29 +365,45 @@ failure until now.
 
 | CodeQL `36361141951`
 | *Perform CodeQL Analysis*
-| not established; reproduces identically
+| **established from the job log; workflow retired 2026-09-29**
 | Checkout, initialise and both post-steps succeeded, so this is an analysis
 failure and not a startup or pinning one. The `actions` extractor is the only
-matrix entry. The log is not retrievable here; no claim is made about the cause.
-Run `36398031121` on the next push to `main` failed at the *same* step 4, so
-this is a stable pre-existing failure that #44 neither caused nor fixed. Note
+matrix entry. On 2026-09-29 the job log for run `36551067938` was read through
+the 302 log redirect: the extraction and evaluation of all 18
+`codeql/actions-queries` 0.6.36 queries *succeed*, and the failure occurs at
+SARIF submission — the run-page annotation says the advanced configuration is
+rejected because the repository has CodeQL **default setup** enabled. The two
+implementation modes are mutually exclusive and the repository already carries
+the GitHub-managed one; the in-repo advanced workflow could never have gone
+green while both lived. `codeql.yml` was therefore retired 2026-09-29 (its
+`;`-pin contradiction — `@2892aa5e… # v4.38.0` while `2892aa5e…` is v4.38.2 —
+is verified against the annotated tag objects: v4.38.0 → `b96794f015df…`,
+v4.38.2 → `2892aa5e19bb…`, and the same re-point is applied to the
+`upload-sarif` step in `oikosbot.yml`). Run `36398031121` on the next push to
+`main` failed at the *same* step 4, so this is a stable pre-existing failure
+that #44 neither caused nor fixed. Note
 that it does not block merges: `EstateBranching` names CodeQL in its
 `code_scanning` rule but declares no `required_status_checks`, and PR #44 merged
 while its own CodeQL run was being refused.
 
 | OikosBot `36361141992`
 | *Run OikosBot analysis*, then *Upload SARIF*
-| not established
+| image side established from the public package page; in-image cause still unestablished
 | The upload failed because the analysis produced no `results.sarif`; the root is
 in the analysis step, which runs `ghcr.io/hyperpolymath/oikos:latest` by
 `docker run`. Run `36398030720` on the next push failed at the same two steps,
-so this too is stable and pre-existing. The `:latest` tag is *deliberate* and its reason is recorded in the
-file: "The former `ghcr.io/hyperpolymath/oikos:v2.0.0` pin referenced a tag that
-never existed on the package." So the unpinned tag is an upstream packaging gap
-— there is no published version tag to pin to — not an oversight here, and it is
-not this repository's to fix by guessing a ref. Recorded, not repaired. The log
-is not retrievable here, so no claim is made about why the analysis itself
-failed.
+so this too is stable and pre-existing. On 2026-09-29 the package's **public
+package page** (hyperpolymath/oikosbot → Packages → oikos) was read: there is
+still no version tag (upstream pushes `latest` plus `sha-<commit>` from its CI),
+but `latest` *does* exist and shared the digest
+`sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded`
+with `sha-2f47a61` at read time. The workflow is now pinned by that digest with
+the provenance recorded in-file (deviation D-C's *form* is closed; the reason
+`latest` cannot be referenced is unchanged: a digest is what the registry can
+verify). What this does not establish: why the analysis run produced no
+`results.sarif` — that failure lives *inside the image* and is upstream's to
+fix or absorb; the digest pin makes every future run of this workflow
+byte-reproducible so its verdict is attributable. Recorded, not claimed cured.
 
 | Scorecard `36361142305`
 | zero jobs, no annotation
@@ -488,10 +520,14 @@ here — see the blocker below. Sequence this *after* the lock tool is proven on
 runner, or the caller itself becomes the next `startup_failure`.
 
 | `codeql.yml` (GATE)
-| *derived*
+| *retired 2026-09-29*
 | Present as a local workflow rather than a call to `codeql-reusable.yml`. The
-pins are SHA-pinned and pinned to the estate-approved version, so this is a
-divergence in form, not in scanning coverage.
+pins are SHA-pinned and pinned to the estate-approved version — except that
+they were not: verified 2026-09-29 against the annotated tag objects, the pin
+`2892aa5e…` is v4.38.2 while its own comment claimed v4.38.0 (`b96794f0…`).
+That drift is now moot: the job-log read showed the file could never have gone
+green while the repository's CodeQL default setup existed, so the file was
+deleted and scanning continues via the default setup.
 
 | `scorecard.yml` (GATE)
 | *present, re-pointed*
@@ -789,22 +825,27 @@ in the repository then fails at startup, including uses-free ones. The interim
 answer is unchanged: modify nothing in the lock, and make the workflows agree
 with it.
 
-*The runner-side answer is pending, and it is one click away.*
-`.github/workflows/zz-probe-actions-lock.yml` is a temporary, uses-free,
-read-only probe that installs the extension on a GitHub runner, prints
+*The runner-side answer is in, and the probe is retired.*
+`.github/workflows/zz-probe-actions-lock.yml` was a temporary, uses-free,
+read-only probe that installed the extension on a GitHub runner, printed
 `gh extension list`, the real `--help` flag surface, the result of
 `gh actions-lock --verify` (which is `--rescan --no-fix`, so it writes nothing),
 and then — in a throwaway copy under `/tmp`, never in the repository — what a
 full regeneration would change. It checksums the real lock before and after and
 prints `git status --porcelain` as the backstop, so "read-only" is demonstrated
-rather than asserted. While an agent pushes it, it is refused like everything
-else; the answer comes from a permitted actor either re-running the refused run
-or dispatching the workflow once it is on the default branch. Its `--verify` semantics were read out of the
+rather than asserted. On 2026-09-29 the question it existed to ask was answered
+without it: the CI-Health Sweep's own runner step
+`gh extension install github/gh-actions-lock --pin v0.1.6` completes on
+`ubuntu-latest` and the sweep proceeds through detection — the runner *can*
+obtain the extension that the sandbox cannot fetch, and no probe file is
+needed to keep asking. The file was deleted 2026-09-29 with this record; the
+refused first run `36397686847` had been refused by cause 2 (the actor), not by
+anything about the tool. Its `--verify` semantics were read out of the
 extension's source at `v0.1.6` (`cmd/gh-actions-lock/run.go:93`: "Full
 re-verification of every pin (equivalent to `--rescan --no-fix`)") and its exit
 contract from `cmd/gh-actions-lock/root.go:30` (0 clean, 1 blocking findings,
-2 tool failure — bad flag, IO error, network failure, malformed lockfile), so the
-probe's output will be interpretable when it lands.
+2 tool failure — bad flag, IO error, network failure, malformed lockfile) — the
+readings stand, independent of the probe's fate.
 
 Reading that source also surfaced something this repository did not know it was
 duplicating. The tool already ships the exact check `scripts/check-lock-sync.sh`
@@ -831,11 +872,12 @@ workflow whose refs are not in the lock stays out of it rather than being
 hand-written in, and `ci-health-sweep.yml` keeps the readable tag its lock entry
 records.
 
-*Four workflows are unlisted in the lock* (`codeql.yml`, `oikosbot.yml`,
-`scorecard.yml`, `secret-scanner.yml` — `pages.yml` was the fifth and has been
-removed; the temporary probe is also unlisted and is not counted as a gap because
-it is about to be deleted). Measured again on the merge push: all four started on
-`main` while absent from the lock — Secret Scanner succeeded, CodeQL and OikosBot
+*Three workflows are unlisted in the lock* (`oikosbot.yml`,
+`scorecard.yml`, `secret-scanner.yml`). The fourth was `codeql.yml`, retired
+2026-09-29 on the measured default-setup conflict; `pages.yml` was the fifth,
+removed earlier; the temporary probe was also unlisted and was deleted the same
+day with its question answered, so it is not a gap either. Measured on the merge push: all four still-present
+workflows started on `main` while absent from the lock — Secret Scanner succeeded, CodeQL and OikosBot
 ran jobs and failed inside them, Scorecard created zero jobs for a reason
 unrelated to the lock (its callee pin, above). So this is a coverage gap, not a
 fault, and `scripts/check-lock-sync.sh` reports it as a NOTE and does not fail.

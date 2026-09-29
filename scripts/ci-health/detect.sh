@@ -11,7 +11,20 @@
 #   A-BILLING      account Actions spending-limit/payment wall (OWNER-ONLY fix)
 #   B-ALLOWLIST    selected mode whose patterns do not cover the canonical
 #                  action superset (auto-remediable)
-#   B-STARTUPFAIL  observed startup_failure runs (symptom; check allow-list)
+#   B-LOCKFILE     startup_failure attributable to lock/YAML drift
+#   B-BADPIN       startup_failure attributable to a ref that resolves nowhere
+#   B-OFFBRANCH    startup_failure attributable to a cross-repo reusable
+#                  workflow pin that is not an ancestor of the callee's
+#                  default branch, does not resolve, or names a callee file
+#                  absent at the pinned ref (the zero-job class measured in
+#                  metadatastician-governance run 36361142305)
+#   B-PERMS        startup_failure attributable to a caller workflow granting
+#                  narrower permissions than the called reusable workflow
+#                  requires (hyperpolymath/standards#451; banner class read
+#                  2026-09-29: "requesting 'actions: read', but is only
+#                  allowed 'actions: none'")
+#   B-ACTOR        startup_failure caused by GitHub refusing the actor
+#   B-STARTUPFAIL  observed startup_failure runs with no attributable cause
 #   D-BURN         workflow(s) on bare [push,pull_request] = 2x runs/PR
 #                  (auto-remediable: scope push + concurrency-cancel)
 #
@@ -21,6 +34,10 @@ set -euo pipefail
 O="${OWNER:-metadatastician}"
 R="$1"
 HERE="$(cd "$(dirname "$0")" && pwd)" # for action-superset.txt (allow-list coverage)
+# The non-lock startup diagnoses below read workflow and callee YAML as
+# VALUES; upstream rule Y-1 requires that to go through a real parser.
+# shellcheck source=scripts/lib/yaml.sh
+. "$HERE/../lib/yaml.sh"
 STARTUP_FAILURE_SINCE="${STARTUP_FAILURE_SINCE:-$(date -u -d '25 hours ago' +%Y-%m-%dT%H:%M:%SZ)}"
 emit() { printf '%s\t%s\t%s\t%s\n' "$R" "$1" "$2" "$3"; }
 die_api() {
@@ -150,8 +167,148 @@ diagnose_startup_failures() {
     done
   fi
 
+  # ── Non-lock causes of the same symptom, read from the mirrored files ──────
+  # Clean lock classes are not the end of the diagnosis. Two more causes are
+  # decidable from the files with a parser (Y-1) plus published API facts;
+  # both were read off live run-page banners on 2026-09-29 (see
+  # docs/governance/METADATASTICIAN-STARTUP-WORKLIST.md):
+  #
+  #   B-OFFBRANCH  a job-level `uses: owner/repo/.github/workflows/x.yml@<ref>`
+  #                whose <ref> is not an ancestor of the callee's default
+  #                branch, does not resolve, or names a callee file absent at
+  #                that ref. Measured 2026-09-28 in this repository: Scorecard's
+  #                pin 892497fe… compared diverged against standards/main and
+  #                its run created ZERO jobs (36361142305).
+  #   B-PERMS      the called reusable workflow requires a permission scope the
+  #                caller grants less of. Banner, consent-aware-web run
+  #                36282215987: "The workflow is requesting 'actions: read',
+  #                but is only allowed 'actions: none'." — standards#451. That
+  #                one banner is 7 of the 13 then-unclassified failures.
+  #
+  # Anything the API will not answer determinately (403, 5xx, timeouts) leaves
+  # the path in the unexplained aggregate rather than being guessed at.
+  #
+  # The permission algebra is expressed in jq, not grep/sed (Y-1). Grant =
+  # the caller job's permission map when present (job permissions replace
+  # workflow permissions wholesale in GitHub Actions), else the caller
+  # workflow's map; when the caller declares NO permissions anywhere the grant
+  # is the repository default — unobservable from files — and the axis is
+  # indeterminate (skip, do not guess). Requirement = the per-scope maximum
+  # over the callee's workflow-level map and every job's map. "read-all" and
+  # "write-all" expand over the canonical scope names.
+  local -A explained=()
+
+  # shellcheck disable=SC2016 # jq syntax, not shell
+  local perm_expand_jq='def perm_expand(p):
+    ["actions","attestations","checks","contents","deployments","discussions",
+     "id-token","issues","packages","pages","pull-requests","repository-projects",
+     "security-events","statuses","vulnerabilities"] as $scopes
+    | if (p | type) == "string" then
+        ({"none": 0, "read-all": 1, "write-all": 2}[p] // -1) as $r
+        | if $r < 0 then {} else ($scopes | map({key: ., value: $r}) | from_entries) end
+      elif (p | type) == "object" then
+        (p | map_values({"none": 0, "read": 1, "write": 2}[.] // -1))
+      else {} end;'
+
   for p in "${paths[@]}"; do
-    if [ -z "${seen_drift[$p]:-}" ] && [ "${#dead_pins[@]}" -eq 0 ]; then
+    wjson=""
+    if ! wjson=$(yaml_to_json "$tmp/$p" 2>/dev/null); then
+      continue # caller YAML unreadable: leave the path unexplained
+    fi
+    run_ids=$(printf '%s\n' "${sf_list[@]}" | awk -F '\t' -v p="$p" '$1 == p {print $3}' | paste -sd, -)
+    callers=""
+    if ! callers=$(jq_read "$wjson" -r '
+        .jobs // {} | to_entries[]
+        | select(.value | type == "object")
+        | select((.value.uses // null) != null)
+        | [.key, (.value.uses | tostring)] | @tsv' 2>/dev/null); then
+      continue
+    fi
+    [ -n "$callers" ] || continue
+    while IFS=$'\t' read -r job use; do
+      [ -n "$use" ] || continue
+      case "$use" in
+      */.github/workflows/*.yml@* | */.github/workflows/*.yaml@*) ;;
+      *) continue ;; # not a cross-repo reusable-workflow call
+      esac
+      slug_path=${use%@*}
+      ref=${use##*@}
+      callee_repo=${slug_path%%/.github/workflows/*}
+      callee_path=.github/workflows/${slug_path#*/.github/workflows/}
+      # Local reusable calls (this repository's own files) have no cross-repo
+      # ancestor question; skip them on both axes.
+      [ "$callee_repo" = "$O/$R" ] && continue
+
+      if ! callee_branch=$(gh api "repos/$callee_repo" --jq '.default_branch' 2>"$tmp/callee_err"); then
+        if grep -qE 'HTTP (404|422)' "$tmp/callee_err"; then
+          emit B-OFFBRANCH HIGH "ERR-SEC-007: $p calls $use — $callee_repo does not resolve (HTTP 404/422; repository missing or unreadable) → re-point the caller at the new callee; failed run(s): $run_ids"
+          explained["$p"]=1
+        fi
+        continue
+      fi
+
+      # B-OFFBRANCH axis: the compare API answers both "does the ref resolve"
+      # and "is it on the default branch line of development" in one call. A
+      # 404/422 means the ref names nothing fetchable in the callee.
+      cmp_status=""; cmp_behind=""
+      if cmp_out=$(gh api "repos/$callee_repo/compare/${ref}...${callee_branch}" --jq '[.status, (.behind_by | tostring)] | @tsv' 2>"$tmp/cmp_err"); then
+        IFS=$'\t' read -r cmp_status cmp_behind <<<"$cmp_out"
+        case "$cmp_status" in
+        diverged | behind)
+          emit B-OFFBRANCH HIGH "ERR-SEC-007: $p calls $use — the pinned ref is not an ancestor of $callee_repo's default branch ($callee_branch): compare status $cmp_status, behind_by $cmp_behind → re-point the caller at a commit on the $callee_branch line of development (this is the zero-job class measured in metadatastician-governance run 36361142305); failed run(s): $run_ids"
+          explained["$p"]=1
+          ;;
+        esac
+      elif grep -qE 'HTTP (404|422)' "$tmp/cmp_err"; then
+        emit B-OFFBRANCH HIGH "ERR-SEC-007: $p calls $use — the pinned ref does not resolve in $callee_repo (compare answered HTTP 404/422) → re-point the caller at a commit that exists on the callee's default branch; failed run(s): $run_ids"
+        explained["$p"]=1
+      fi
+      # any other compare failure (rate limit, 5xx) is indeterminate: no finding
+
+      # B-PERMS axis: read the callee file AT THE PINNED REF and compare
+      # declared requirements against the caller's effective grant.
+      if ! callee_b64=$(gh api "repos/$callee_repo/contents/$callee_path?ref=$ref" --jq '.content' 2>"$tmp/cwf_err"); then
+        if grep -qE 'HTTP (404|422)' "$tmp/cwf_err"; then
+          emit B-OFFBRANCH HIGH "ERR-SEC-007: $p calls $use — $callee_path does not exist in $callee_repo at the pinned ref (404) → re-point the caller at a ref that serves the callee file; failed run(s): $run_ids"
+          explained["$p"]=1
+        fi
+        continue
+      fi
+      printf '%s' "$callee_b64" | base64 -d >"$tmp/callee-${job}-$(basename "$callee_path")"
+      cjson=""
+      if ! cjson=$(yaml_to_json "$tmp/callee-${job}-$(basename "$callee_path")" 2>/dev/null); then
+        continue # callee YAML unreadable: perms axis indeterminate
+      fi
+      if ! grant=$(jq_read "$wjson" -c --arg j "$job" "$perm_expand_jq"'
+        (if .permissions == null then null else perm_expand(.permissions) end) as $wf
+        | (if .jobs[$j].permissions == null then null else perm_expand(.jobs[$j].permissions) end) as $job
+        | if $job != null then $job elif $wf != null then $wf else null end' 2>/dev/null); then
+        continue
+      fi
+      [ "$grant" != "null" ] || continue # caller declares nothing: grant is the repo default, unobservable
+      if ! req=$(jq_read "$cjson" -c "$perm_expand_jq"'
+        def reqmax($a; $b): ([($a | keys[]?), ($b | keys[]?)] | unique
+          | map({key: ., value: ([$a[.] // 0, $b[.] // 0] | max)}) | from_entries);
+        reduce ([] + [perm_expand(.permissions // {})]
+               + [.jobs // {} | .[] | select(type == "object") | perm_expand(.permissions // {})])[]
+          as $m ({}; reqmax(.; $m))' 2>/dev/null); then
+        continue
+      fi
+      under=$(jq -n -r --argjson req "$req" --argjson grant "$grant" '
+        def lab: ["none", "read", "write"][.];
+        [$req | keys[] | . as $k | ($grant[$k] // 0) as $g
+          | select($req[$k] > $g)
+          | "\($k): \($req[$k] | lab) required, \($g | lab) granted"]
+        | join("; ")')
+      if [ -n "$under" ]; then
+        emit B-PERMS HIGH "ERR-SEC-008: $p job '$job' calls $use, whose reusable workflow requires permissions the caller does not grant: $under (hyperpolymath/standards#451 caller under-grant; the banner class read 2026-09-29 on consent-aware-web run 36282215987) → grant the missing scope(s) on the caller workflow or its '$job' job; failed run(s): $run_ids"
+        explained["$p"]=1
+      fi
+    done <<<"$callers"
+  done
+
+  for p in "${paths[@]}"; do
+    if [ -z "${seen_drift[$p]:-}" ] && [ "${#dead_pins[@]}" -eq 0 ] && [ -z "${explained[$p]:-}" ]; then
       n_unexplained=$((n_unexplained + 1))
     fi
   done

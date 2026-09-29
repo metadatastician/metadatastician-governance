@@ -6,7 +6,14 @@
 # scripts/ci-health/README.adoc):
 #   A-BILLING     account spending-limit/payment wall   -> REPORT (owner-only)
 #   B-ALLOWLIST   selected + incomplete canonical patterns -> AUTO-FIX (allow-list)
-#   B-STARTUPFAIL observed startup_failure runs          -> REPORT
+#   B-LOCKFILE    startup_failure attributable to lock/YAML drift -> DRY B-LOCKFIX
+#   B-BADPIN      startup_failure attributable to an unresolvable ref -> REPORT
+#   B-OFFBRANCH   startup_failure from a cross-repo reusable pin that is not an
+#                 ancestor of the callee's default branch (or does not resolve) -> REPORT
+#   B-PERMS       startup_failure from a caller under-granting permissions the
+#                 called reusable requires (standards#451) -> REPORT
+#   B-ACTOR       startup_failure from a refused triggering actor          -> REPORT
+#   B-STARTUPFAIL observed startup_failure runs with no attributable cause -> REPORT
 #   D-BURN        bare [push, pull_request] double-trigger-> AUTO-FIX (PR)
 #
 # Complements metadatastician-remediation-sweep.yml (Dependabot) — same fleet-sweep

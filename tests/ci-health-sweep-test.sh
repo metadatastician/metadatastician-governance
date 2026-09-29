@@ -100,6 +100,10 @@ if [ -n "${MANY_FINDINGS:-}" ] && [ "$t" != @organization ]; then
   filler="$(head -c 200 /dev/zero | tr '\0' x)"
   for i in $(seq 1 "$MANY_FINDINGS"); do printf '%s\tB-BADPIN\tHIGH\tERR-SEC-005: %s %s\n' "$t" "$i" "$filler"; done
 fi
+if [ -n "${NEWCLASSES:-}" ] && [ "$t" != @organization ]; then
+  printf '%s\tB-OFFBRANCH\tHIGH\tERR-SEC-007: .github/workflows/audit.yml calls hyperpolymath/standards/.github/workflows/audit-reusable.yml@c0ffee — diverged\n' "$t"
+  printf '%s\tB-PERMS\tHIGH\tERR-SEC-008: .github/workflows/audit.yml job audit grants contents:none, reusable requires contents:read\n' "$t"
+fi
 exit 0
 STUB
   cat >"$h/remediate.sh" <<'STUB'
@@ -244,6 +248,23 @@ check_body_cap "$SWEEP" && ok "cap: an oversize body is cut on a line, says so, 
 check_body_whole "$SWEEP" && ok "cap: a report under the limit is published whole" || bad "body whole"
 check_one_repair "$SWEEP" && ok "dedupe: six findings for one repository -> one repair, no false CAP lines" || bad "one repair per repository"
 check_real_cap "$SWEEP" && ok "cap: MAX_LOCKFIX_PRS reached is still stated, once per repository, with no repair" || bad "real cap"
+
+# ── Report-only startup classes reach the published report ─────────────────
+# B-OFFBRANCH and B-PERMS are diagnosed by detect.sh from the mirrored files;
+# the sweep must carry them into the issue body, REPORT them (never mutate
+# another repository for them), and not mistake them for the B-LOCKFIX seam.
+check_new_classes() { # B-OFFBRANCH/B-PERMS: published, REPORTed, no lockfix
+  local body_s
+  run_sweep "$1" NEWCLASSES=one
+  body_s="$(cat "$case_dir/published-body.md" 2>/dev/null)"
+  [ "$rc" -eq 0 ] \
+    && printf '%s' "$body_s" | grep -q 'alpha (B-OFFBRANCH)' \
+    && printf '%s' "$body_s" | grep -q 'alpha (B-PERMS)' \
+    && [ "$(count "$out" '^REPORT alpha/B-OFFBRANCH')" -eq 1 ] \
+    && [ "$(count "$out" '^REPORT alpha/B-PERMS')" -eq 1 ] \
+    && [ "$(count "$out" '^PROPOSED alpha/B-LOCKFIX')" -eq 0 ]
+}
+check_new_classes "$SWEEP" && ok "report-only: B-OFFBRANCH and B-PERMS are published and REPORTed, never repaired" || { bad "new classes reach the report"; printf '%s\n' "$out" | head; }
 
 # ── Mutants: each must make its check fail ───────────────────────────────────
 mutant() { # mutant <name> <sed expression>  -> prints path of the mutated copy

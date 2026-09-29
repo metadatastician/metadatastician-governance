@@ -42,8 +42,12 @@
 #   1 = at least one pin is determinately dead
 #   2 = NO CHECK WAS PERFORMED — no parser, unreadable lockfile, no `gh`
 #
-# Usage: check-lock-pins.sh [REPO_ROOT]        (default: repository root)
+# Usage: check-lock-pins.sh [REPO_ROOT] [--offline]
 #        REPO_ROOT=/path        limit to one repo
+#        --offline              parse-only smoke run; a long-form spelling of
+#                               SKIP_PIN_RESOLUTION=1 so callers that pass
+#                               flags (rather than env) read honestly (still
+#                               exit 2 if no parser)
 #        SKIP_PIN_RESOLUTION=1  parse-only smoke run (still exit 2 if no parser)
 
 set -uo pipefail
@@ -52,7 +56,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/yaml.sh
 . "$SCRIPT_DIR/lib/yaml.sh"
 
-ROOT="${1:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+OFFLINE_FLAG=0
+ROOT=""
+for a in "$@"; do
+  case "$a" in
+    --offline) OFFLINE_FLAG=1 ;;
+    *) [ -z "$ROOT" ] && ROOT="$a" ;;
+  esac
+done
+[ -n "$ROOT" ] || ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOCK="$ROOT/.github/workflows/actions.lock"
 
 if [ ! -f "$LOCK" ]; then
@@ -77,7 +89,7 @@ if [ "${#dep_keys[@]}" -eq 0 ]; then
   exit 0
 fi
 
-if [ "${SKIP_PIN_RESOLUTION:-0}" = "1" ]; then
+if [ "${SKIP_PIN_RESOLUTION:-0}" = "1" ] || [ "$OFFLINE_FLAG" = "1" ]; then
   printf 'lock-pins: parse-only run — examined %d dependency record(s), resolution skipped by request\n' "${#dep_keys[@]}"
   exit 0
 fi
