@@ -25,7 +25,7 @@ line).
 |===
 | ID | Theme | Unit | Size | Verdict
 
-| 01 | statistics | `stats-config-core` | 2 files / ~2,230 l | ON HIS LIST
+| 01 | statistics | `stats-config-core` | 1 / 2,217 l | ON HIS LIST — BLOCKED
 | 02 | statistics | `stats-numeric-policy` | 1 / 569 | ON HIS LIST
 | 03 | statistics | `stats-scaling-offsets` | 1 / 503 | ON HIS LIST
 | 04 | statistics | `stats-estimation` | 1 / 1,081 | ON HIS LIST
@@ -38,8 +38,7 @@ line).
 | 11 | statistics | `stats-wiring` | 1 / 66 | ON HIS LIST
 | 12 | statistics | `stats-tests` | 15 files | ON HIS LIST
 | 13 | statistics | `stats-docs` | 16 files | ON HIS LIST (minimum only)
-| 14 | ci | `ci-julia-tests-rename` | 1 / 2-line | ON HIS LIST — closes #14
-| 15 | ci | `ci-fastqc-multiqc` | 1 (+pins) | ON HIS LIST — closes #15
+| 14+15 | ci | `ci-rename-and-qc-tools` | 1 / 26 ± | ON HIS LIST — **patch ready**, closes #14, #15
 | 16 | ci | `ci-retry-pinned-downloads` | 1 / ~12 l | ON HIS LIST (#11 redux)
 | 17 | ci | `ci-proofs-workflow` | 2 files | ASK FIRST
 | 18 | doi | `doi-core` | 6 / 1,151 | ASK FIRST
@@ -54,7 +53,7 @@ line).
 | 27 | backend | `backend-epistemic` | 1 / 593 | ASK FIRST
 | 28 | backend | `backend-core-tests` | 26 files | ASK FIRST
 | 29 | bench | `bench-julia` | 22 files | ON HIS LIST (#10 redux)
-| 30 | frontend | `frontend-tests` | 23 files | WANTED (he asked for these)
+| 30 | frontend | `frontend-tests` | 23 files | WANTED — needs rework
 | 31 | frontend | `frontend-bench` | 3 files | ON HIS LIST (#10 redux)
 | 32 | tooling | `repo-tooling` | ~14 files | ASK FIRST
 | 33 | tooling | `kyaml-pilot` | 4 files | ASK FIRST
@@ -67,10 +66,36 @@ The maintainer: _"Meet all six and I will review it properly, including real
 feedback on the statistics work, which is the part we actually want."_ These
 are the units to send first and in order.
 
-=== 01 `stats-config-core` — ON HIS LIST
-`src/analysis/AnalysisConfig.jl` (2,217 l, new), `src/analysis/analysis_config.jl` (13 l, new).
-The configuration type that the rest of the cluster is written against. Send
-first; nothing else compiles without it.
+=== 01 `stats-config-core` — ON HIS LIST — *BLOCKED, do not send yet*
+
+`src/analysis/AnalysisConfig.jl` (2,217 l, new). The configuration type the
+rest of the cluster is written against — but it does **not** compile on its
+own. Its own header block:
+
+```julia
+module AnalysisConfig
+using Dates, SHA, UUIDs, JSON3, OrderedCollections, Logging
+using ..DOIBundles: write_checksums!
+using ..Provenance: CapturedEnvironment, probe_metamanifold, probe_host
+import ..Epistemic
+```
+
+So unit 01 as a standalone branch would fail at `using MetaManifold` and turn
+the whole suite red — the exact failure mode condition 5 exists to prevent. It
+can only ship together with, or after:
+
+* **unit 18** `doi-core` (for `DOIBundles`),
+* **unit 27** `backend-epistemic` (for `Epistemic`),
+* a check that upstream's `src/core/provenance.jl` (971 l) already exports
+  `probe_host`; the branch's copy is 1,032 l, so if `probe_host` is ours the
+  addition has to be re-applied onto his file rather than overwriting it.
+
+Also: drop `src/analysis/analysis_config.jl` from this unit. It is a 13-line
+backwards-compatibility shim whose own comment says it is *"NO LONGER ON THE
+LOAD PATH"* and that including it alongside the canonical file *"would define
+module AnalysisConfig twice"*. Sending both would be a self-inflicted bug.
+
+*Unblocking this needs a Julia environment* — see `RUNBOOK.md`.
 
 === 02 `stats-numeric-policy` — ON HIS LIST
 `src/analysis/numeric_policy.jl` (569 l, new).
@@ -242,11 +267,32 @@ than overwrite.
 
 == Theme 7 — Frontend tests
 
-=== 30 `frontend-tests` — WANTED
+=== 30 `frontend-tests` — WANTED — *needs rework before it can be sent*
+
 `frontend/tests/**` (23 files: unit, integration, e2e, fixtures, gates).
 He asked for these directly on #7: _"I would be happy to see the typed
 `contracts/DTOs` and the new work under `frontend/tests/` in a future PR."_
-Test-only, and the fastest goodwill available.
+
+The catch is that "test-only" is true in intent but not in effect. These tests
+were written against **our** frontend, and his has moved since:
+
+* they import `../../src/views/NotFoundView` and
+  `../../src/type-theory/dendrogram-receipts/{bridgeIndex,controller}` —
+  neither `views/` nor `type-theory/` exists under his `frontend/src/`
+  (his tree is `about.ts`, `components/`, `figure/`, `hooks/`, `api/`);
+* they exercise components he has since reworked or replaced —
+  `PublicationTables*`, `figure/*`, `PlacementPanel`, `TreesPanel`;
+* the branch pins React 19 + plotly 4.x + `react-plotly.js`; his `package.json`
+  is React 18 + plotly 2.35 and has none of the newer devDependencies;
+* `e2e/*.ts` needs `@playwright/test`, which his `package.json` does not carry,
+  and his `test` script is `bun test src` — it would not even pick the
+  directory up.
+
+Sending the directory as-is would either not run at all or run red against
+components that no longer match. The unit is real and he wants it; it needs
+the imports re-pointed at his current components, the React-18-era
+expectations re-checked, and its own script (`bun test tests`) added **without**
+disturbing his `bun run test`. That is a rework, not a push.
 
 == Theme 8 — Tooling and hygiene
 

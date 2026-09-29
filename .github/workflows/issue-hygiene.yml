@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: MPL-2.0
+# SPDX-FileCopyrightText: 2026 Jonathan D.A. Jewell (hyperpolymath)
+# Owner: Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
+#
+# Issue hygiene — retire the generated reports that have piled up.
+#
+# Why this exists: the CI-health sweep upserts its rolling report by searching
+# for its title, and the title has not been byte-stable. Four identically
+# titled reports accumulated (#14, #23, #24, #30) plus a separate watchdog
+# issue (#43) whose wording no longer matched what it measured. Closed issues
+# still sit in every list view, so "the bane of our lives" is a real cost, not
+# a tidy-up preference.
+#
+# An App installation token cannot delete, lock, or even comment on an issue —
+# `Resource not accessible by integration` on all three. GITHUB_TOKEN can
+# close, comment and lock, so that is what this workflow uses. Deletion is not
+# exposed to tokens at all; it needs the UI or a user token.
+#
+# Deliberately carries NO `uses:` of its own: every workflow here that can be
+# taken out by a lockfile problem has been, and this one is not going to
+# reintroduce that shape. `gh` is preinstalled on the runner.
+#
+# Nothing here runs on a schedule. Retiring an issue is a decision, so a human
+# dispatches it and names the numbers.
+
+name: Issue hygiene
+
+on:
+  workflow_dispatch:
+    inputs:
+      issues:
+        description: "Space-separated issue numbers to retire"
+        required: true
+        default: "14 23 24 43"
+      comment:
+        description: "Comment to leave on each issue before locking"
+        required: false
+        default: |
+          Superseded — this is one of several identically titled CI-health
+          sweep reports. #30 is the single canonical rolling issue, and the
+          sweep has been given a byte-stable title so it upserts instead of
+          accumulating. Locked so nothing reopens it.
+
+permissions:
+  issues: write
+
+concurrency:
+  group: issue-hygiene
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Close and lock
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Retire each named issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUES: ${{ inputs.issues }}
+          COMMENT: ${{ inputs.comment }}
+        run: |
+          set -euo pipefail
+          for n in $ISSUES; do
+            case "$n" in
+              ''|*[!0-9]*) echo "::error::'$n' is not an issue number — skipping"; continue ;;
+            esac
+
+            state=$(gh issue view "$n" --repo "$REPO" --json state --jq .state 2>/dev/null || echo "MISSING")
+            case "$state" in
+              MISSING) echo "issue #$n does not exist — skipping"; continue ;;
+              OPEN)
+                gh issue close "$n" --repo "$REPO" --reason "not planned" >/dev/null \
+                  && echo "closed #$n" || echo "could not close #$n"
+                ;;
+              CLOSED) echo "#$n is already closed" ;;
+            esac
+
+            printf '%s\n' "$COMMENT" \
+              | gh issue comment "$n" --repo "$REPO" --body-file - >/dev/null 2>&1 \
+              && echo "  commented on #$n" || echo "  comment refused on #$n (token scope?)"
+
+            # Locking needs issues: write too, and stops the sweep's upsert or a
+            # well-meaning bot from resurrecting the thread.
+            gh api -X PUT "repos/$REPO/issues/$n/lock" -f lock_reason=resolved >/dev/null 2>&1 \
+              && echo "  locked #$n" || echo "  lock refused on #$n (needs a user token if this persists)"
+          done
+
+      - name: Report what is left
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "--- open issues ---"
+          gh issue list --repo "$REPO" --state open --limit 50 \
+            --json number,title --jq '.[] | "#\(.number)\t\(.title)"'
+          echo "--- count of closed reports still titled 'estate failure-class report' ---"
+          gh issue list --repo "$REPO" --state closed --limit 100 \
+            --search "estate failure-class report in:title" --json number \
+            --jq 'length | "\(.) remaining"'

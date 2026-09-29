@@ -41,8 +41,16 @@ decide.
 | What is deliberately *not* in the menu: Genie/Stipple, the Marid+Vue
   frontend migration, licence metadata, and the 102 stale deletions.
 
+| link:RUNBOOK.md[RUNBOOK.md]
+| The commands to land a unit with your own credentials. The agent token
+  cannot push to the fork — 403 on `hyperpolymath/MetaManifold-WebUI`.
+
 | link:MAKE-UNITS.sh[MAKE-UNITS.sh]
 | Regenerates and verifies the unit path lists against live refs.
+
+| link:patches/[patches/], link:pr-bodies/[pr-bodies/]
+| Ready-to-land patches and the PR text that goes with them. A unit with a
+  patch here is ready to send; one without is still being prepared.
 |===
 
 == The rule this directory exists to enforce
