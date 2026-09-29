@@ -10,9 +10,10 @@ https://github.com/hyperpolymath/proven-tests-and-benches[`proven-tests-and-benc
 (provenance order and `docs/TEST-DOCTRINE.adoc`).
 
 *Last measured:* 2026-09-29 by `./scripts/run-shell-test-suite.sh`, exit 0
-(bash 5.2.15, jq 1.6, python3 3.11.2 with PyYAML 6.0.3 as the YAML parser) —
-10 test files, 112 `ok` assertions counted in their own output. The previous
-figure on this line (4 files, 53 checks) no longer described the tree. Two files
+(bash 5.2.15, jq 1.6, nickel 1.18.0 core via `py-nickel` as the YAML parser) —
+11 test files, 117 `ok` assertions counted in their own output. The previous
+figure on this line (10 files, 112 checks) was before `tests/ci-health-sweep-errors-test.sh`
+was cherry-picked from PR #52 and reconciled against PR #51. Two files
 do not report in that unit: the property suite states 8 properties over 40
 generated cases, and the README-badges test prints a single `OK`.
 
@@ -49,7 +50,9 @@ three states that file defines and never collapsing the second into the first:
   HTTP answer, and each exit code. `tests/ci-health-detect-test.sh` applies the
   same split to the sweep's repository-tree query (an empty repository is a
   determinate answer; a 403, a 404 and a different 409 are not), and
-  `tests/ci-health-sweep-test.sh` and `tests/estate-sweep-watchdog-test.sh` cover
+  `tests/ci-health-sweep-test.sh`, `tests/ci-health-sweep-errors-test.sh` (the
+  unstubbed `sweep.sh` → `detect.sh` seam, cherry-picked from #52 and
+  reconciled with #51) and `tests/estate-sweep-watchdog-test.sh` cover
   the refusal evidence and the watchdog's script, each against mutants of the
   code under test. Their fake `gh` runs the `--jq` filter it is given, because a
   stub that returns already-filtered text cannot see a broken filter.

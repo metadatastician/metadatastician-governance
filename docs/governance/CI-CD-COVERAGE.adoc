@@ -281,8 +281,9 @@ Starting is not passing — and then passing is the next question. Two pushes to
   failed — CI, CodeQL, OikosBot, Scorecard.
 * `3eb6625d91`, 2026-09-28T08:33 (the #44 merge): all seven started, **CI,
   Scorecard, Lock Sync Gate, Secret Scanner and the `dynamic` run are green**;
-  CodeQL and OikosBot still fail, and the sweep still fails at step 3 for the
-  token-scope reason below.
+  CodeQL and OikosBot still fail, and the sweep still failed at step 3 for the
+  empty-repository reason below (initially attributed to token scope, corrected
+  2026-09-29 in the Correction section).
 
 Each row states the step that failed and how far the diagnosis got. Job logs
 cannot be downloaded from the authoring environment —

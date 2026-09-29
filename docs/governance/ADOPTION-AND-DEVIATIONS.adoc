@@ -106,9 +106,10 @@ runs on every PR and push.
 `Run actions/checkout@v7.0.1`, succeeded — the lockfile resolving this exact
 mutable tag to its recorded commit, end to end, on a runner — and the job ran
 17m54s. Gates also exit 0 locally and `Lock Sync Gate` succeeded on `main`
-(`36361142025`). The sweep still fails, at step 3, for an unrelated reason
-(its PAT's scope; see `CI-CD-COVERAGE.adoc`), which does not bear on this
-deviation: the ref resolved, and that is the whole claim D-B makes.
+(`36361142025`). The sweep still failed in that run, at step 3, for an unrelated
+reason (one empty repository in scope, initially misdiagnosed as its PAT's scope
+and corrected on 2026-09-29; see `CI-CD-COVERAGE.adoc`), which does not bear on
+this deviation: the ref resolved, and that is the whole claim D-B makes.
 
 *Review date / re-arm.* Immediately after the lock tool is proven runnable:
 regenerate, then convert this line to the full SHA and confirm
