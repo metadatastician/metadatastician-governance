@@ -122,9 +122,11 @@ because it is the one that is actively costing pinning coverage.
 
 === D-C — `oikosbot.yml` runs a container image pinned by digest, not by version tag
 
-*Scope.* One line: `ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded`,
-invoked by `docker run`. Present in the `:latest` form since at least
-2026-07-28 (`2143f7e74d`); re-pointed at the digest 2026-09-29.
+*Scope.* One line: `ghcr.io/hyperpolymath/oikos@sha256:31d12c9139f13a58f7581008d888e4bb4fa8d9120091137e2ac652b3b5a6b661`
+(OCI index of `sha-9df7a29`, which `development` also names), invoked by
+`docker run`. Present in the `:latest` form since at least 2026-07-28
+(`2143f7e74d`); pinned by digest 2026-09-29 (`cc9b731d…`, then `latest`);
+re-pointed 2026-10-05 because that build could not start (see below).
 
 *Authority.* None — originally the clearest case of an unnoticed deviation
 rather than a chosen one: it survived because no gate in this repository reads
@@ -147,6 +149,20 @@ RepoDigests line so the job log carries the exact bytes that ran. The registry
 counterexample stands on two legs, both dated 2026-09-29: the tag list is
 digest-shaped (`latest`, `sha-<commit>`, no `v*`), and no semantic-version tag
 exists to name.
+
+*Cause of the red run, established 2026-10-05.* Two defects, in order. (1) The
+`cc9b731d…` image (`sha-2f47a61`) was built with `rust:1-slim` — Debian Trixie,
+glibc 2.41 — and copied onto a `debian:bookworm-slim` runtime (glibc 2.36), so
+the binary died at exec with `GLIBC_2.38' not found` / `GLIBC_2.39' not
+found` (PR #58 run `37358546903`). Upstream fixed the Containerfile in
+hyperpolymath/oikosbot `9df7a29` (#110, both stages Bookworm) and stopped
+moving `latest` (`publish-image.yml`: `latest=false`), so `latest` is frozen at
+the broken build. (2) With a working image, `.oikos.yml` listing `idris`, `zig`,
+`haskell` or `typescript` makes the run exit 2 — "no check performed:
+unsupported configured language" — again with no SARIF; the analyzer supports
+`rust`, `javascript`, `python` only. Both were reproduced locally with podman
+against this repository's `main` and the fix (new digest + supported languages)
+produced a valid SARIF and exit 0.
 
 *Containment.* Weak, and stated as weak: the job runs with
 `permissions: security-events: write, contents: read`, `--user "$(id -u):$(id -g)"`,

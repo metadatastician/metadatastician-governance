@@ -388,7 +388,7 @@ while its own CodeQL run was being refused.
 
 | OikosBot `36361141992`
 | *Run OikosBot analysis*, then *Upload SARIF*
-| image side established from the public package page; in-image cause still unestablished
+| established 2026-10-05: glibc-mismatched image, then unsupported `.oikos.yml` languages (see D-C)
 | The upload failed because the analysis produced no `results.sarif`; the root is
 in the analysis step, which runs `ghcr.io/hyperpolymath/oikos:latest` by
 `docker run`. Run `36398030720` on the next push failed at the same two steps,
