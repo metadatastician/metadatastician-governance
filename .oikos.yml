@@ -23,14 +23,14 @@ exclude:
   - "**/third_party/**"
   - "**/.well-known/**"
 
-# Language support
+# Language support. OikosBot's analyzer supports exactly rust, javascript and
+# python today (crates/oikosbot-cli/src/config.rs `language_extension`); any
+# other entry makes the run exit 2 ("no check performed: unsupported configured
+# language") with no SARIF. Add languages here only when upstream supports them.
 analysis:
   languages:
     - rust
-    - idris
-    - zig
-    - haskell
-    - typescript
+    - javascript
     - python
 
 # Reporting

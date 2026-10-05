@@ -31,19 +31,21 @@ jobs:
       # referenced a tag that never existed on the package.
       #
       # The package publishes no version tag: upstream (hyperpolymath/oikosbot)
-      # pushes `latest` plus `sha-<commit>` tags from its CI. What its public
-      # package page does publish is DIGESTS, so the pin here is by digest and
-      # the provenance is recorded rather than guessed: this digest is what
-      # tag `latest` resolved to when this line was written — read off
-      # hyperpolymath/oikosbot → Packages → oikos on 2026-09-29 (`latest`
-      # shared with `sha-2f47a61`, digest shown below). This closes deviation
-      # D-C's form; the deviation's review triggers are unchanged.
+      # pushes `sha-<commit>` and `development` tags from its CI. The pin is
+      # by digest, with provenance recorded rather than guessed: this is the
+      # OCI index digest of `sha-9df7a29` (== `development`), read with
+      # `skopeo inspect --raw` on 2026-10-05. The previous pin (`cc9b731d…`,
+      # `latest` == `sha-2f47a61`) was built on a Trixie rust:1-slim builder
+      # over a Bookworm runtime and died at exec with
+      # "GLIBC_2.38/2.39 not found" — that is why no results.sarif was ever
+      # written. `latest` is frozen at that broken build (upstream set
+      # latest=false in publish-image.yml); do not re-point at it.
       - name: Run OikosBot analysis
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
             -v "$GITHUB_WORKSPACE:/work" -w /work \
-            ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded \
+            ghcr.io/hyperpolymath/oikos@sha256:31d12c9139f13a58f7581008d888e4bb4fa8d9120091137e2ac652b3b5a6b661 \
             report /work \
             --format sarif \
             --output /work/results.sarif \
@@ -56,7 +58,7 @@ jobs:
       - name: Record the resolved image digest
         run: |
           docker image inspect \
-            ghcr.io/hyperpolymath/oikos@sha256:cc9b731d8df9fde0fbde4e404b9cd27ad063760d16418e5cd12fa1187cbb1ded \
+            ghcr.io/hyperpolymath/oikos@sha256:31d12c9139f13a58f7581008d888e4bb4fa8d9120091137e2ac652b3b5a6b661 \
             --format 'resolved RepoDigests: {{json .RepoDigests}}'
 
       - name: Upload SARIF to GitHub Security
@@ -70,11 +72,11 @@ jobs:
         # UPLOAD step only. The reason this workflow is red is upstream of it —
         # `Run OikosBot analysis` fails, so no results.sarif is ever written and
         # this upload then fails for want of its input (run 36398030720). A
-        # correct pin cannot fix a missing file. The analysis step's own cause
-        # is NOT established; see docs/governance/CI-CD-COVERAGE.adoc, which
-        # records it as undiagnosed, and D-C in ADOPTION-AND-DEVIATIONS.adoc
-        # (image now pinned by digest with recorded provenance; the digest pins
-        # the analysis image, not this upload action).
+        # correct pin cannot fix a missing file. The analysis step's cause was
+        # established 2026-10-05 (two defects: a glibc-mismatched image, then
+        # unsupported languages in .oikos.yml); see docs/governance/
+        # CI-CD-COVERAGE.adoc and D-C in ADOPTION-AND-DEVIATIONS.adoc (the
+        # digest pins the analysis image, not this upload action).
         # The comment above says v4.38.0 while the pin below previously read
         # `2892aa5e19bb…`, which is v4.38.2 (verified 2026-09-29 against the
         # annotated tag objects: v4.38.0 → b96794f015dfd88f…, v4.38.1 →
