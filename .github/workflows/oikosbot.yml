@@ -22,6 +22,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          # The analysis container mounts the checkout read-write as the
+          # workspace owner; do not leave the job token in .git/config for it.
+          persist-credentials: false
 
       # Run the published CLI container explicitly (the image sets a
       # non-root USER, which GitHub `container:` jobs do not tolerate).
