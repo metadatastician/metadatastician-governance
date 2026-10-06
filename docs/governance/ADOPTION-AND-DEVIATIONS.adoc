@@ -169,17 +169,18 @@ produced a valid SARIF and exit 0.
 a read-only-mounted workspace by convention rather than enforcement, and its SARIF
 upload is a separate step. The digest pin removes the *moves-under-you* half of
 the exposure — `latest` re-pointing silently — but the image content itself is
-exactly as much of an upstream product as it was. The run is *also* the one
-failing on `main` (`36361141992`, `36398030720`: analysis produces no
-`results.sarif`, upload then fails for want of its input); the digest pin does
-not claim to cure that failure, which lives inside the image and is upstream's
-to fix or absorb — it makes the failure attributable by making every run
-byte-reproducible.
+exactly as much of an upstream product as it was. Runs `36361141992`,
+`36398030720` and `37358546903` are historical: they used the previous image
+and the unsupported language list, analysis produced no `results.sarif`, and
+upload failed for want of its input. Checkout runs with
+`persist-credentials: false`, so the job token is not readable by the container.
 
-*Evidence status.* Partially measured, stated as such: the digest's validity
-read off the public package page (2026-09-29); the analysis failure's root
-cause not established here. No gate covers image references in `run:` blocks;
-no test asserts anything about this pin.
+*Evidence status.* Measured. The cause was established 2026-10-05 (above). The
+fix (#59) passed in GitHub Actions on PR head `4d7d5da3`, run `37371326697`
+(*Sustainability Analysis* success, SARIF uploaded). The two post-merge runs that
+first showed red (`37370067223`, `37371484830`) were cancelled before starting
+("job was not acquired by Runner"), not analysis failures. No gate covers image
+references in `run:` blocks; no test asserts anything about this pin.
 
 *Review date / re-arm.* Two triggers, whichever comes first: the upstream
 package publishes a real version tag, at which point pin it by digest of that
