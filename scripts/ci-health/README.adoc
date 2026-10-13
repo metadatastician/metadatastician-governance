@@ -187,7 +187,12 @@ repository-owner review. B-OFFBRANCH and B-PERMS are likewise report-only:
 re-pointing a caller or widening a grant are trust decisions a sweep may
 diagnose but never apply. B-ACTOR remains owner-settings-only (org/repo
 Settings -> Actions); no repository
-change applies. `lockfix.sh` itself exits 2 on API, parser, generator and token
+change applies. The exception is an actor the owner has fenced out on purpose:
+logins listed in `CI_HEALTH_FENCED_ACTORS` (set in `ci-health-sweep.yml`; owner
+ruling 2026-10-13, booked on hyperpolymath/standards#787) are refused by
+policy, so `detect.sh` steps over their startup refusals and judges each
+workflow on its latest run that is not one. An unlisted app's refusal is still
+B-ACTOR. `lockfix.sh` itself exits 2 on API, parser, generator and token
 failures, never success. What the sweep does with that exit depends on the mode:
 in a scheduled (dry) sweep a failed proposal is a `::warning` annotation and an
 `E-INSTRUMENT` line in the report's B-LOCKFIX section, and the report is still
