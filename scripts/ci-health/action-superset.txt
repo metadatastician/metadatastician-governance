@@ -47,6 +47,8 @@ ionos-deploy-now/retrieve-project-info-action
 ionos-deploy-now/template-renderer-action
 jetli/wasm-pack-action
 julia-actions/cache
+julia-actions/julia-buildpkg
+julia-actions/julia-docdeploy
 julia-actions/julia-processcoverage
 julia-actions/setup-julia
 KSXGitHub/github-actions-deploy-aur
