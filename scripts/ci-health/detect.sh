@@ -23,7 +23,9 @@
 #                  requires (hyperpolymath/standards#451; banner class read
 #                  2026-09-29: "requesting 'actions: read', but is only
 #                  allowed 'actions: none'")
-#   B-ACTOR        startup_failure caused by GitHub refusing the actor
+#   B-ACTOR        startup_failure caused by GitHub refusing the actor (an
+#                  actor named in CI_HEALTH_FENCED_ACTORS is refused by owner
+#                  policy: those runs are skipped, not reported)
 #   B-STARTUPFAIL  observed startup_failure runs with no attributable cause
 #   D-BURN         workflow(s) on bare [push,pull_request] = 2x runs/PR
 #                  (auto-remediable: scope push + concurrency-cancel)
@@ -44,6 +46,25 @@ die_api() {
   emit E-INSTRUMENT CRITICAL "$1"
   exit 2
 }
+
+# Actors the owner has deliberately fenced out of Actions (owner ruling
+# 2026-10-13 on the B-ACTOR findings of metadatastician-governance#30, booked
+# on hyperpolymath/standards#787). GitHub refusing one of them at startup is
+# that policy working, not a fault in the workflow, so a workflow is judged on
+# its latest run that is NOT such a refusal. Space-separated logins; unset or
+# empty keeps every bot refusal reportable as B-ACTOR, exactly as before.
+#
+# The list is spliced into a --jq program as a JSON array literal (gh api has
+# no --arg), so every entry must be a plain login: a typo here must stop the
+# repository's detection, not quietly widen or break the fence.
+read -r -a fenced_actors <<<"${CI_HEALTH_FENCED_ACTORS:-}"
+fenced_json=""
+for a in "${fenced_actors[@]}"; do
+  [[ "$a" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*(\[bot\])?$ ]] ||
+    die_api "CI_HEALTH_FENCED_ACTORS holds '$a', which is not a GitHub login; refusing to guess the fence"
+  fenced_json+="${fenced_json:+,}\"$a\""
+done
+fenced_json="[$fenced_json]"
 check_allowlist() {
   local scope="$1" aa cur req miss ntot nmiss first
   if ! aa=$(gh api "$scope/actions/permissions" --jq '.allowed_actions // empty'); then
@@ -344,11 +365,25 @@ sf_list=()      # "path<TAB>head_branch" for each active workflow whose latest r
 actor_refused=()  # "path<TAB>actor" for startup failures caused by an actor GitHub refuses to run
 while IFS= read -r workflow_id; do
   [ -z "$workflow_id" ] && continue
-  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=1" --jq '.workflow_runs[0] | [.id, (.path // ""), (.conclusion // ""), (.created_at // ""), (.head_branch // ""), (.actor.login // ""), (.triggering_actor.login // "")] | @tsv'); then
+  # The latest run that is not a fenced actor's startup refusal, plus how many
+  # such refusals were stepped over to reach it. With no fence that is simply
+  # run [0] and a skip count of 0. If every run in the page is a fenced refusal
+  # the filter is empty and the workflow has no health signal to judge.
+  if ! latest=$(gh api "repos/$O/$R/actions/workflows/$workflow_id/runs?per_page=20" --jq '(.workflow_runs // []) as $all
+      | ($all | map(.conclusion == "startup_failure"
+          and ((.actor.login // "") as $a | (.triggering_actor.login // "") as $t
+               | '"$fenced_json"' | any(. == $a or . == $t)))) as $refused
+      | [range(0; $all | length) | select($refused[.] | not)][0] as $i
+      | if $i == null then empty
+        else $all[$i] | [.id, (.path // ""), (.conclusion // ""), (.created_at // ""), (.head_branch // ""), (.actor.login // ""), (.triggering_actor.login // ""), $i] | @tsv
+        end'); then
     die_api "latest-run query failed for workflow $workflow_id; run health is unknown"
   fi
   [ -z "$latest" ] && continue
-  IFS=$'\t' read -r run_id wf_path conclusion created_at wf_branch actor trigger_actor <<<"$latest"
+  IFS=$'\t' read -r run_id wf_path conclusion created_at wf_branch actor trigger_actor fenced_skipped <<<"$latest"
+  if [ "${fenced_skipped:-0}" != 0 ]; then
+    echo "NOTE $R $wf_path: stepped over $fenced_skipped fenced-actor startup refusal(s) (owner policy, not health) to run $run_id" >&2
+  fi
   if [ "$conclusion" = startup_failure ] && [[ "$created_at" > "$STARTUP_FAILURE_SINCE" ]]; then
     # ── Two DIFFERENT causes produce the identical `startup_failure` symptom ──
     #
@@ -428,7 +463,10 @@ fi
 # B-ACTOR: GitHub refusing the *actor* outright ("Actor is not allowed to
 # trigger Actions workflows"). It is decided before any workflow file is read,
 # so it is invisible to every file-based check, and it is the cause of the
-# app-authored failures this sweep previously could not explain.
+# app-authored failures this sweep previously could not explain. Refusals of
+# the owner's fenced actors (CI_HEALTH_FENCED_ACTORS) never reach this point:
+# the run query above steps over them, so what remains here is an app the
+# owner has NOT ruled out, and that is still a settings question.
 #
 # Branch-scoped failures (a run on a feature branch) are not this repository's
 # default-branch health and are skipped rather than reported.

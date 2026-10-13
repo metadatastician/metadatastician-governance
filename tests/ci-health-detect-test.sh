@@ -116,7 +116,18 @@ YAML
 case "$endpoint" in
   repos/metadatastician/sample) emit '{"archived":false,"fork":false,"default_branch":"main"}' ;;
   repos/metadatastician/sample/actions/workflows/42/runs*)
-    emit "{\"total_count\":1,\"workflow_runs\":[{\"id\":777000,\"path\":\".github/workflows/governance.yml\",\"conclusion\":\"startup_failure\",\"created_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"head_branch\":\"main\",\"actor\":{\"login\":\"hyperpolymath\"},\"triggering_actor\":{\"login\":\"hyperpolymath\"}}]}" ;;
+    now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    run() { # run <id> <conclusion> <actor>
+      printf '{"id":%s,"path":".github/workflows/governance.yml","conclusion":"%s","created_at":"%s","head_branch":"main","actor":{"login":"%s"},"triggering_actor":{"login":"%s"}}' "$1" "$2" "$now" "$3" "$3"
+    }
+    # RUNS chooses the run history, newest first (the API's order).
+    case "${RUNS:-human-sf}" in
+      human-sf) emit "{\"total_count\":1,\"workflow_runs\":[$(run 777000 startup_failure hyperpolymath)]}" ;;
+      fenced-then-ok) emit "{\"total_count\":3,\"workflow_runs\":[$(run 777002 startup_failure 'dependabot[bot]'),$(run 777001 startup_failure 'coderabbitai[bot]'),$(run 777000 success hyperpolymath)]}" ;;
+      fenced-only) emit "{\"total_count\":2,\"workflow_runs\":[$(run 777001 startup_failure 'coderabbitai[bot]'),$(run 777000 startup_failure 'arena-ai-coding-agent[bot]')]}" ;;
+      unfenced-bot) emit "{\"total_count\":2,\"workflow_runs\":[$(run 777001 startup_failure 'some-other-app[bot]'),$(run 777000 success hyperpolymath)]}" ;;
+      fenced-ok-run) emit "{\"total_count\":2,\"workflow_runs\":[$(run 777001 success 'dependabot[bot]'),$(run 777000 startup_failure hyperpolymath)]}" ;;
+    esac ;;
   repos/metadatastician/sample/actions/workflows*)
     case "${SF_SCENARIO:-none}" in
       none) emit '{"total_count":0,"workflows":[]}' ;;
@@ -317,6 +328,97 @@ m4="$(mutant never-undergrant 's/select(\$req\[\$k\] > \$g)/select($req[$k] > $g
     ok "mutant never-undergrant killed (an under-grant would pass silently)"
   else
     bad "mutant never-undergrant SURVIVED (out=[$out])"
+  fi
+}
+
+# ── Fenced actors: owner-ruled refusals are policy, not health ──────────────
+# Owner ruling 2026-10-13 (metadatastician-governance#30, booked on
+# hyperpolymath/standards#787): GitHub refusing dependabot[bot],
+# coderabbitai[bot] and arena-ai-coding-agent[bot] is intended. Their startup
+# refusals must not hold the rolling issue open, but nothing else may hide
+# behind them: an unlisted app is still B-ACTOR, a human's startup_failure is
+# still diagnosed, and with no fence configured the old behaviour is unchanged.
+echo "detect.sh — fenced actors"
+
+FENCE='dependabot[bot] coderabbitai[bot] arena-ai-coding-agent[bot]'
+
+# run_detect_actor <detect.sh path> <RUNS scenario> <fence list> -> rc, out, err
+run_detect_actor() {
+  local script="$1" runs="$2" fence="$3"
+  out="" err="" rc=0
+  out="$(env PATH="$TMP/bin:$PATH" TREE=sf SF_SCENARIO=clean RUNS="$runs" CI_HEALTH_FENCED_ACTORS="$fence" \
+    OWNER=metadatastician CHECK_ALLOWLIST=false bash "$script" sample 2>"$TMP/err")" || rc=$?
+  err="$(cat "$TMP/err")"
+}
+
+run_detect_actor "$DETECT" fenced-then-ok ""
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-ACTOR\t' && printf '%s' "$out" | grep -qF 'dependabot[bot]'; then
+  ok "no fence configured: a bot refusal is still B-ACTOR (behaviour unchanged)"
+else
+  bad "no fence: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_actor "$DETECT" fenced-then-ok "$FENCE"
+if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
+  ok "fenced refusals stepped over: the workflow is judged on its latest real run (success), no finding"
+else
+  bad "fenced-then-ok: rc=$rc out=[$out] err=[$err]"
+fi
+if printf '%s' "$err" | grep -qF 'stepped over 2 fenced-actor startup refusal(s)'; then
+  ok "fenced refusals stepped over: the skip is announced on stderr with its count"
+else
+  bad "fenced-then-ok: no NOTE line; stderr=[$err]"
+fi
+
+run_detect_actor "$DETECT" fenced-only "$FENCE"
+if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
+  ok "only fenced refusals: no health signal, no finding (and no E-INSTRUMENT)"
+else
+  bad "fenced-only: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_actor "$DETECT" unfenced-bot "$FENCE"
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-ACTOR\t' && printf '%s' "$out" | grep -qF 'some-other-app[bot]'; then
+  ok "an app outside the fence is still B-ACTOR"
+else
+  bad "unfenced-bot: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_actor "$DETECT" human-sf "$FENCE"
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qP '\tB-STARTUPFAIL\t'; then
+  ok "a human's startup_failure is still diagnosed with the fence in place"
+else
+  bad "human-sf under fence: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_actor "$DETECT" fenced-ok-run "$FENCE"
+if [ "$rc" -eq 0 ] && [ -z "$out" ] && ! printf '%s' "$err" | grep -qF 'stepped over'; then
+  ok "only refusals are stepped over: a fenced actor's successful run still counts as the latest run"
+else
+  bad "fenced-ok-run: rc=$rc out=[$out] err=[$err]"
+fi
+
+run_detect_actor "$DETECT" fenced-then-ok 'dependabot[bot] not;a-login'
+if [ "$rc" -eq 2 ] && printf '%s' "$out" | grep -q 'E-INSTRUMENT' && printf '%s' "$out" | grep -qF 'not;a-login'; then
+  ok "a malformed fence entry stops detection (E-INSTRUMENT) instead of guessing"
+else
+  bad "malformed fence: rc=$rc out=[$out]"
+fi
+
+m5="$(mutant fence-never-matches 's/any(\. == \$a or \. == \$t)/any(false)/')" && {
+  run_detect_actor "$m5" fenced-then-ok "$FENCE"
+  if printf '%s' "$out" | grep -qP '\tB-ACTOR\t'; then
+    ok "mutant fence-never-matches killed (fenced refusals would hold the issue open again)"
+  else
+    bad "mutant fence-never-matches SURVIVED (out=[$out])"
+  fi
+}
+m6="$(mutant fence-skips-everything 's/map(\.conclusion == "startup_failure"/map(true/')" && {
+  run_detect_actor "$m6" fenced-ok-run "$FENCE"
+  if printf '%s' "$out" | grep -qP '\tB-STARTUPFAIL\t'; then
+    ok "mutant fence-skips-everything killed (a fenced actor's success would hide the failure behind it)"
+  else
+    bad "mutant fence-skips-everything SURVIVED (out=[$out])"
   fi
 }
 

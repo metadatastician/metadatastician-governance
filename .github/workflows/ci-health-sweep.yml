@@ -100,6 +100,11 @@ jobs:
           ENABLE_LOCKFIX_PRS: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_lockfix_prs || 'false' }}
           ISSUE_REPO: metadatastician-governance
           CI_HEALTH_DENYLIST: ''   # No denylist for metadatastician estate
+          # Apps the owner fenced out of Actions on purpose (ruling 2026-10-13,
+          # booked on hyperpolymath/standards#787). Their startup refusals are
+          # the policy working; detect.sh steps over them instead of reporting
+          # B-ACTOR. Any other app's refusal is still reported.
+          CI_HEALTH_FENCED_ACTORS: 'dependabot[bot] coderabbitai[bot] arena-ai-coding-agent[bot]'
         run: |
           chmod +x scripts/ci-health/*.sh
           gh extension install github/gh-actions-lock --pin v0.1.6
