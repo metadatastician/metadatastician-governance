@@ -100,6 +100,30 @@ unlisted=()
 fail_block() { printf 'FAIL %s\n' "$1"; fail=$((fail + 1)); }
 reason()     { printf '    %s\n' "$1"; }
 
+# canon_refs — one ref per line in, the same refs out with `owner/repo`
+# lower-cased and everything else (sub-path, `@ref`) left exactly as written.
+#
+# GitHub owner and repository names are case-insensitive, and `gh actions-lock`
+# writes them in lower case (`sonarsource/sonarqube-scan-action@v8.3.0`) while
+# the workflow keeps the publisher's spelling (`SonarSource/...`). GitHub runs
+# that pair. Compared as raw text it read as one missing ref plus one stale
+# entry, and the CI-Health sweep reported it as B-LOCKFILE drift in every repo
+# using SonarQube (#30, 2026-10-13): a false alarm that the generator cannot
+# clear, because regenerating writes the same lower-case key again. The vendored
+# awk copy of this gate in older repos already folded case; the parser rewrite
+# dropped it. The `@ref` keeps its case: git refs ARE case-sensitive.
+canon_refs() {
+  awk '{
+    at = index($0, "@")
+    if (at == 0) { print; next }
+    n = split(substr($0, 1, at - 1), seg, "/")
+    out = tolower(seg[1])
+    if (n >= 2) out = out "/" tolower(seg[2])
+    for (i = 3; i <= n; i++) out = out "/" seg[i]
+    print out substr($0, at)
+  }'
+}
+
 # ── Population. State it: a gate that does not say what it examined cannot
 #    report that it examined the wrong thing.
 mapfile -t files < <(
@@ -129,7 +153,7 @@ for f in "${files[@]}"; do
     printf 'E-INSTRUMENT: .github/workflows/%s did not resolve as YAML — NO CHECK WAS PERFORMED\n' "$rel" >&2
     exit 2
   fi
-  WF_REFS["$rel"]="$(printf '%s\n' "$refs" | sed '/^$/d' | sort -u)"
+  WF_REFS["$rel"]="$(printf '%s\n' "$refs" | sed '/^$/d' | canon_refs | sort -u)"
 done
 
 lock_keys="$(jq_read "$lock_json" -r '.workflows // {} | keys[]')" || {
@@ -175,7 +199,7 @@ for f in "${files[@]}"; do
 
   # `uses:` refs the workflow actually requests, from the parse pre-pass.
   want_sorted="${WF_REFS[$rel]}"
-  have_sorted="$(jq_read "$lock_json" -r --arg p "$key" '.workflows[$p] // [] | .[]' | sort -u)"
+  have_sorted="$(jq_read "$lock_json" -r --arg p "$key" '.workflows[$p] // [] | .[]' | canon_refs | sort -u)"
 
   # These two sets are compared as *text*, which is safe: both sides are
   # already parser output, not YAML being searched.

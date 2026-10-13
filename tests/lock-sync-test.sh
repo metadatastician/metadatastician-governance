@@ -216,6 +216,39 @@ else
   bad "no lockfile: rc=$rc"; cat "$TMP/out"
 fi
 
+# ── Owner/repo case: GitHub folds it, the generator lower-cases it ─────────
+# `gh actions-lock` keys `SonarSource/sonarqube-scan-action` as
+# `sonarsource/...`, and GitHub runs that pair. Reading it as drift put a
+# B-LOCKFILE finding the generator cannot clear into every SonarQube repo in the
+# 2026-10-13 CI-Health report (#30). The `@ref` must keep its case: git refs are
+# case-sensitive, so a tag spelled differently IS a different ref.
+SONAR_SHA=d209202bc7d53ff1cc128f7f907dac145c9d6ae9
+sonar_root() { # sonar_root <name> <uses-ref as the workflow spells it>
+  local d
+  d="$(new_root "$1")"
+  printf '      - uses: %s\n' "$2" >> "$d/.github/workflows/alpha.yml"
+  write_lock "$d" "" "" \
+    "$(printf "    'sonarsource/sonarqube-scan-action@v8.3.0':\n        ref: 'v8.3.0'\n        commit: 'sha1-%s'\n        owner_id: 545988\n        repo_id: 366408409" "$SONAR_SHA")"
+  sed -i "s|^        - 'actions/checkout@$SHA'$|&\n        - 'sonarsource/sonarqube-scan-action@v8.3.0'|" "$d/.github/workflows/actions.lock"
+  printf '%s' "$d"
+}
+
+d="$(sonar_root owner_case 'SonarSource/sonarqube-scan-action@v8.3.0')"
+run_check "$d"; rc=$?
+if [ "$rc" -eq 0 ]; then
+  ok "owner/repo case only (SonarSource vs sonarsource): exit 0, not drift"
+else
+  bad "owner/repo case only fired: rc=$rc"; cat "$TMP/out" "$TMP/err"
+fi
+
+d="$(sonar_root ref_case 'SonarSource/sonarqube-scan-action@V8.3.0')"
+run_check "$d"; rc=$?
+if [ "$rc" -eq 1 ] && grep -q 'refs missing from the lockfile: sonarsource/sonarqube-scan-action@V8.3.0' "$TMP/out"; then
+  ok "ref case differs (V8.3.0 vs v8.3.0): still drift, exit 1"
+else
+  bad "ref case difference was folded away: rc=$rc"; cat "$TMP/out" "$TMP/err"
+fi
+
 # ── Guard against a regression to the text readers (rule Y-1) ──────────────
 # The gate must reach its verdict through the parser. A line-oriented reader
 # gets a flow-style document wrong, so this fixture is what notices if one is
