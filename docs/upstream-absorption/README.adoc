@@ -8,9 +8,7 @@ upstream. Every line is a proposal until the maintainer says otherwise.
 == What this is
 
 `JoshuaJewell/MetaManifold-WebUI` (upstream, AGPL-3.0, Julia + R + TypeScript)
-is worked on through the `hyperpolymath/MetaManifold-WebUI` fork. Fork and
-upstream share exactly one commit — the initial commit — so the fork's work
-arrives upstream as *add/add conflicts* rather than as a diff. The first
+is worked on through the `hyperpolymath/MetaManifold-WebUI` fork. The first
 attempts to hand it over were monolithic: 319 files, then 561, then 574. The
 maintainer rejected all of them on sight and said so in writing.
 
@@ -18,6 +16,16 @@ This directory is the replacement for that approach: the work is cut into
 small, named, ordered units that can be accepted or refused one at a time,
 over weeks, without anyone having to read a quarter of a million lines to
 decide.
+
+*Historical premise, kept for the record:* at founding, fork and upstream
+shared exactly one commit — the initial commit — so the fork's work arrived
+upstream as *add/add conflicts* rather than as a diff. **Measured
+2026-10-15, that era is over:** upstream now absorbs fork commits with
+their history (his `main` HEAD *is* a fork commit), the merge base is his
+own `257bcde`, and the fork deletes nothing upstream holds. The register's
+job is unchanged — units, verdicts, and the six conditions — but a merged
+unit now lands with history, and `UPSTREAM-SYNC-STATE.md` §1.1 carries the
+measurement.
 
 == The five documents
 

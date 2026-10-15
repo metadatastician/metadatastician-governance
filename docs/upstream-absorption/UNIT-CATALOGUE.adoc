@@ -316,3 +316,62 @@ and the `Genie/Stipple/StippleUI` dependencies."_ The directory is already
 gone from the working set — this row exists so nobody re-adds it.
 Note the root `Project.toml` is clean: it depends on Oxygen, not Genie. Only
 `ui/Project.toml` carries Genie 6 / Stipple 1 / StippleUI 1.
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Re-measurement, 2026-10-15. Appended, not retro-edited: every verdict and
+// quote above this rule is the historical record and stays exactly as it was.
+// The rows below are the current state, measured by the same MAKE-UNITS.sh
+// against upstream 52feb605 / fork 35bd313. See UPSTREAM-SYNC-STATE.md §1.1
+// for the premise change (he now absorbs fork history).
+// ═══════════════════════════════════════════════════════════════════════════
+
+== Re-measurement, 2026-10-15 — statuses of the original 34
+
+[cols="1,2,3,2",options="header"]
+|===
+| ID | Unit | Measured status | Evidence / where it went
+| 01–09, 13 | statistics cluster | **STALE — superseded** | The paths exist nowhere now: not on fork `main`, not in the fork's archives, not upstream. Never compilable standalone (see unit 01's own note). Superseded by fork issue #1, which re-derives the statistics layer against current `main`
+| 10 | `stats-diversity-1x1` | **ABSORBED** | 2 files, 0 new vs upstream: the 1x1 diversity work is in his commits
+| 11 | `stats-wiring` | **ABSORBED** | 1 file, 0 new
+| 12 | `stats-tests` | **ABSORBED** | 4 files, 0 new
+| 14, 15 | `ci-rename-and-qc-tools` | **ABSORBED** | his `d0b31f4`, `5b45d09` — the patch in `patches/` is now historical
+| 16 | `ci-retry-pinned-downloads` | **ABSORBED** | `scripts/ci/fetch_pinned.sh` exists both sides, 0 new
+| 17 | `ci-proofs-workflow` | **STALE — superseded** | his CI carries its own Agda job; proofs workflows live fork-side only
+| 18–22 | doi units | **STALE — parked** | the DOI work left even the fork; it is fork issue #8, not on any current branch
+| 23 | `proofs-agda-core` | **PARTLY ABSORBED — 2 files live** | BH + scaling proofs merged as his PR #26; the fork's 2 new files are the PERMANOVA proofs, **offered as his PR #55 (open)**
+| 24 | `proofs-agda-evidence` | **SPUN OUT** | the Evidence tree lives in its own repo now: `metadatastician/MetaManifold-Evidence`
+| 25 | `proofs-harness` | **ABSORBED** | 1 file, 0 new
+| 26 | `type-theory-receipts` | **STALE — spun out** | type-theory material moved to the Evidence repo
+| 27 | `backend-epistemic` | **STALE — spun out** | `src/core/epistemic.jl` exists nowhere; the epistemic direction lives in the Evidence repo
+| 28 | `backend-core-tests` | **ABSORBED** | 22 files, 0 new vs upstream
+| 29 | `bench-julia` | **ABSORBED** | 5 files, 0 new — he asked for bench in isolation (#10) and it landed with his chain
+| 30 | `frontend-tests` | **STALE — reworked** | the fork's test layout changed (`frontend/src/*.test.ts`); the old `frontend/tests/` tree exists nowhere. His want, quoted at PR #7, stands; the rework is a new unit when taken up
+| 31 | `frontend-bench` | **STALE** | no `frontend/bench` on either side
+| 32 | `repo-tooling` | **2 FILES NEW, fork-side** | the fork's `Justfile` and `.editorconfig` (PR #157). ASK FIRST before offering: tooling he did not ask for
+| 33 | `kyaml-pilot` | **STALE — superseded** | the pilot paths exist nowhere; KYAML adoption is now estate canon (standards YAML-POLICY Y-3) and the fork carries the formatter + ratchet (PR #159). The shared-config conversion is a new unit, below
+| 34 | `ui-genie-removal` | **REFUSED — stands** | his rejection is unaffected by the era change
+|===
+
+== New-era units (IDs 35+, 2026-10-15)
+
+Units of the era in which he absorbs fork history and reviews PRs on his own
+repo. Each is one branch cut from his current HEAD, `behind_by: 0`, his six
+conditions unchanged.
+
+[cols="1,2,3,2",options="header"]
+|===
+| ID | Unit | Status | Note
+| 35 | `dada2-base-r` — the base-R taxonomy CSV assembly, dplyr out of `renv.lock` | **SENT — his PR #57, open** | first slice of his #36; his CI green on it
+| 36 | `permanova-proofs` — the PERMANOVA Agda proofs (`proofs/agda/MetaManifold/Permanova.agda` + All/README wiring) | **SENT — his PR #55, open** | unit 23's 2 live files, offered as their own branch
+| 37 | `docs-community` — wiki pointer, DA documentation, community files | **SENT — his PR #56, open** | carries the review fixes from the fork's #143
+| 38 | `charts-fixpoint` — the title-markup fixpoint strip (fork PR #119's work) | **SENT — his PR #40, closed unmerged 2026-10-15** | closed silently; asked; no answer yet. The one-pass strip it fixes is still on his `main`
+| 39 | `wildcard-origin` — the wildcard-bind origin admission (fork PR #121's work) | **SENT — his PR #54, closed unmerged 2026-10-15** | closed silently; asked; no answer yet. The LAN-IP rejection is still on his `main`
+| 40 | `canonical-jcs` — `MetaManifold.Canonical`, RFC 8785 canonical JSON verified byte-for-byte against the estate's `ijson-jcs` crate | **FORK-SIDE, LANDED — fork PR #159, merged** | new module, no upstream conflict; ASK FIRST before offering upstream (he did not ask for it; it answers the certainty-of-representation question)
+| 41 | `relevance-gates` — the path-relevance CI gates | **FORK-ONLY** | the fork's CI policy (pinned actions, allowlist) diverges from his; the *pattern* is estate canon (standards catalogue) and the squabbler issue, but his workflows are his
+| 42 | `kyaml-config-defaults` — the config defaults converted to KYAML + the readers updated | **PREPARED — hold** | per standards YAML-POLICY Y-3 and his ask-first rule: offer after the open PRs settle; the fork's ratchet (PR #159) holds new fork-side YAML meanwhile
+|===
+
+Dependency notes for the new era: 38 and 39 depend on his answers to the
+questions already on those PRs, not on any code; 42 depends on the open
+verdicts so its branch is cut against his settled HEAD; 40 is
+self-contained and could be offered at any time the owner chooses to ask.

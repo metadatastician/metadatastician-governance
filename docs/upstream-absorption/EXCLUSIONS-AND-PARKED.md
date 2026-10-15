@@ -41,13 +41,17 @@ description — never taken by editing `CITATION.cff`.
 The fork carries a `LICENSES/` directory (4 files) and a `NOTICE`. Both stay
 on the fork.
 
-## 4. The 102 stale deletions — an artefact, never an intention
+## 4. Historical: the 102 stale deletions — an artefact, never an intention
 
-The branch was cut from upstream's July state. Diffed against today's
-`upstream/main` it deletes 102 paths, including his publication-table builder,
-figure builder, phylogenetic-placement panels and all nine README
+The branch was cut from upstream's July state. At the original measurement,
+diffed against `upstream/main`, it deleted 102 paths, including his
+publication-table builder, figure builder, phylogenetic-placement panels and all nine README
 screenshots. Those deletions mean "our branch is old", not "these files
 should go".
+
+**Correction, 2026-10-15:** the fork now deletes **0 upstream paths**, as
+recorded in [UPSTREAM-SYNC-STATE.md](UPSTREAM-SYNC-STATE.md) §1.1. The
+102-path count is historical, not a current safety check.
 
 Every unit is built by **re-applying a file set onto current `main`**. No
 unit may delete a path that exists upstream unless that deletion is the
@@ -71,3 +75,14 @@ The rest stays on the fork. It is our working record, not his reading list.
 estate's own conventions applied to a repository that is not ours. They are
 offered as one ask-first unit (32, `repo-tooling`) rather than smuggled in
 under a statistics PR — and should not be sent at all unless he asks.
+
+---
+
+## 5. Measured note, 2026-10-15 — the one exception, and it was closed
+
+The `frontend/src/**` park was breached once, deliberately: the title-markup
+fixpoint (a code-scanning remediation, fork PR #119) was offered as his PR
+#40 because it is a defect fix, not migration work. He closed it unmerged
+without a word on 2026-10-15; the one-pass strip it fixes is still on his
+`main`. The park stands for the wholesale frontend migration; the register
+records the exception so it is neither repeated casually nor forgotten.
