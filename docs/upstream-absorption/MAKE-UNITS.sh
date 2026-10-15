@@ -10,7 +10,7 @@
 #   cd <a clone of hyperpolymath/MetaManifold-WebUI>
 #   git remote add upstream https://github.com/JoshuaJewell/MetaManifold-WebUI.git
 #   git fetch upstream main
-#   UPSTREAM_REF=upstream/main BRANCH_REF=origin/arena/01a0db23-metamanifold-webui \
+#   UPSTREAM_REF=upstream/main BRANCH_REF=origin/main \
 #     path/to/MAKE-UNITS.sh
 #
 # It reports, then fails loudly if:
@@ -20,12 +20,25 @@
 #     README, screenshots, frontend/src — see EXCLUSIONS-AND-PARKED.md);
 #   * a declared unit matches no file at all (the paths went stale).
 #
+# Re-measured 2026-10-15: the unit list below is the LIVE set only.
+# Units whose paths resolve nowhere any more (01–09, 13, 17–22, 24, 26,
+# 27, 30, 31, 33, 34 of the original catalogue) are recorded with their
+# measured statuses — absorbed, superseded, spun out, parked, refused —
+# in UNIT-CATALOGUE.adoc, and are deliberately not listed here: the
+# register measures what exists, the catalogue remembers what went.
+# Unit 38 (charts-fixpoint) is record-only in the catalogue: its paths
+# are under frontend/src/, which this register forbids for units, and it
+# was sent as a security exception and closed — the script cannot measure
+# what it must refuse to carry.
+# The default BRANCH_REF is the fork.s main (the old arena default went
+# with its branch).
+#
 # bash + git only.
 
 set -uo pipefail
 
 UPSTREAM_REF="${UPSTREAM_REF:-upstream/main}"
-BRANCH_REF="${BRANCH_REF:-origin/arena/01a0db23-metamanifold-webui}"
+BRANCH_REF="${BRANCH_REF:-origin/main}"
 
 die() { printf 'make-units: %s\n' "$*" >&2; exit 1; }
 
@@ -36,39 +49,22 @@ git rev-parse -q --verify "$BRANCH_REF^{commit}" >/dev/null 2>&1 \
 
 # id|name|pathspecs
 UNITS=$(cat <<'EOF'
-01|stats-config-core|src/analysis/AnalysisConfig.jl src/analysis/analysis_config.jl
-02|stats-numeric-policy|src/analysis/numeric_policy.jl
-03|stats-scaling-offsets|src/analysis/scaling.jl
-04|stats-estimation|src/analysis/estimation.jl
-05|stats-exact-summaries|src/analysis/exact_summaries.jl
-06|stats-ilr-basis|src/analysis/ilr_basis.jl
-07|stats-zero-replacement|src/analysis/zero_replacement.jl
-08|stats-dispersion|src/analysis/dispersion.jl
-09|stats-clade-cumulus|src/analysis/clade_cumulus.jl
 10|stats-diversity-1x1|src/analysis/diversity.jl src/analysis/analysis.jl
 11|stats-wiring|src/MetaManifold.jl
-12|stats-tests|test/unit/test_analysis.jl test/unit/test_analysis_config.jl test/unit/test_analysis_config_milestone3.jl test/unit/test_analysis_duckdb.jl test/unit/test_dispersion.jl test/unit/test_diversity.jl test/unit/test_estimation.jl test/unit/test_exact_summaries.jl test/unit/test_execution.jl test/unit/test_ilr_basis.jl test/unit/test_numeric_boundaries.jl test/unit/test_numeric_policy.jl test/unit/test_scaling.jl test/unit/test_zero_replacement.jl test/unit/test_read_conservation.jl
-13|stats-docs|docs/statistics
+12|stats-tests|test/unit/test_analysis.jl test/unit/test_analysis_config.jl test/unit/test_dispersion.jl test/unit/test_diversity.jl test/unit/test_estimation.jl test/unit/test_exact_summaries.jl test/unit/test_ilr_basis.jl test/unit/test_numeric_boundaries.jl test/unit/test_numeric_policy.jl test/unit/test_scaling.jl test/unit/test_zero_replacement.jl test/unit/test_read_conservation.jl
 14|ci-julia-tests-rename|.github/workflows/ci.yml
 15|ci-fastqc-multiqc|.github/workflows/ci.yml
 16|ci-retry-pinned-downloads|scripts/ci/fetch_pinned.sh
-17|ci-proofs-workflow|.github/workflows/proofs.yml scripts/check-proofs.sh
-18|doi-core|src/doi/AnalysisStore.jl src/doi/Bundles.jl src/doi/Publications.jl src/doi/Storage.jl src/doi/Web.jl src/doi/Zenodo.jl
-19|doi-publication-surface|src/doi/assets src/server/routes/doi.jl
-20|doi-schemas|config/schemas/doi_publication.ncl config/schemas/doi_publication.schema.json config/templates/doi_publication_chora.deed
-21|doi-tests|test/doi
-22|doi-workflow-bench|.github/workflows/doi.yml scripts/link-doi.sh bench/doi
 23|proofs-agda-core|proofs/agda
-24|proofs-agda-evidence|proofs/agda/MetaManifold/Evidence
-25|proofs-harness|proofs/PROOF-STATUS.md proofs/HANDOFF.md proofs/bootstrap.sh proofs/residue proofs/tests proofs/vectors
-26|type-theory-receipts|type-theory
-27|backend-epistemic|src/core/epistemic.jl
-28|backend-core-tests|test/unit/test_categories.jl test/unit/test_composition.jl test/unit/test_composition_library.jl test/unit/test_config.jl test/unit/test_config_hashing.jl test/unit/test_dada2_commands.jl test/unit/test_databases.jl test/unit/test_databases_library.jl test/unit/test_duckdb_store.jl test/unit/test_funcdb.jl test/unit/test_install_pins.jl test/unit/test_jobs.jl test/unit/test_log.jl test/unit/test_merge_taxa.jl test/unit/test_merge_taxa_mappings.jl test/unit/test_migrate_composition.jl test/unit/test_primers_library.jl test/unit/test_project.jl test/unit/test_provenance.jl test/unit/test_r_runtime.jl test/unit/test_routes.jl test/unit/test_tools.jl test/unit/test_validation.jl
+25|proofs-harness|proofs/tests
+28|backend-core-tests|test/unit/test_categories.jl test/unit/test_composition.jl test/unit/test_composition_library.jl test/unit/test_config.jl test/unit/test_dada2_commands.jl test/unit/test_databases.jl test/unit/test_databases_library.jl test/unit/test_duckdb_store.jl test/unit/test_funcdb.jl test/unit/test_install_pins.jl test/unit/test_jobs.jl test/unit/test_log.jl test/unit/test_merge_taxa.jl test/unit/test_merge_taxa_mappings.jl test/unit/test_migrate_composition.jl test/unit/test_primers_library.jl test/unit/test_project.jl test/unit/test_provenance.jl test/unit/test_r_runtime.jl test/unit/test_tools.jl test/unit/test_validation.jl
 29|bench-julia|bench
-30|frontend-tests|frontend/tests
-31|frontend-bench|frontend/bench
-32|repo-tooling|Justfile mise.toml .editorconfig .envrc .gitmessage guix.scm channels.scm Containerfile stapeln.toml .bun-version .githooks scripts/check-blob-hygiene.sh scripts/check-format.sh scripts/check-lint.sh scripts/check-spdx.sh scripts/gen-tools-yml.sh
-33|kyaml-pilot|config/kyaml scripts/kyaml test/unit/test_kyaml.jl
+32|repo-tooling|Justfile .editorconfig launcher.sh
+35|dada2-base-r|src/pipeline/dada2/dada2_functions.r renv.lock R/_renv_dependencies.R
+36|permanova-proofs|proofs/agda/MetaManifold/Permanova.agda proofs/agda/MetaManifold/All.agda proofs/agda/README.md
+39|wildcard-origin|src/server/server.jl test/unit/test_server_security.jl
+40|canonical-jcs|src/canonical.jl test/unit/test_canonical.jl test/fixtures/jcs_oracle.jsonl
+42|kyaml-config-defaults|config/defaults/pipeline.yml config/defaults/tools.yml config/defaults/tool_versions.yml
 EOF
 )
 

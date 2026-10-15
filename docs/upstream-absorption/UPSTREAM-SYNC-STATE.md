@@ -4,7 +4,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Upstream sync state — MetaManifold-WebUI
 
-Measured 2026-09-29. Every number here is re-derivable with
+Measured 2026-10-15. Every number here is re-derivable with
 `MAKE-UNITS.sh`; nothing is carried over from a previous reading.
 
 | Repo | Role | Default branch |
@@ -15,61 +15,86 @@ Measured 2026-09-29. Every number here is re-derivable with
 ## 1. The measured divergence
 
 ```
-upstream/main  HEAD   6b2693d7dd2ccf9959d9ca170b3716a6e02e88ab
-                      "Move the server into the package and build the
-                       frontend at install"            2026-09-28
-fork/main      HEAD   9f3ec0293a9b859c4f2464ea2fffb473be96ba8f
-PR #13 head           0d1fd6830c268f411acc147aac2700f58c5aaceb
-merge base            78845531c48ab188ceffcaf24703df34dc508181
-                      ("Initial commit" — the only shared commit)
+upstream/main  HEAD   52feb605176a4b140f4b40c2b74d2f18adec1f72
+                      "test(pipeline): run the vsearch stage through the
+                       server's entry points (#113)"         2026-10-15
+fork/main      HEAD   35bd313
+                      "chore(root): Justfile, CHANGELOG, .editorconfig,
+                       launcher (+ --agent) …" (#157)         2026-10-15
+merge base            257bcdec2db0d4231ed9d5b160b5caa623485681
+                      ("Add a Differential Abundance tab to the
+                       analysis workspace")
 ```
 
-* `fork/main` vs `upstream/main`: **98 ahead, 253 behind**, merge base = the
-  initial commit. The fork was history-rewritten (blob strip) which renamed
-  every commit, so the two sides have no usable three-way base.
-* `PR #13 head` vs **current** `upstream/main`: **397 added, 154 modified,
-  102 deleted**.
+* `fork/main` vs `upstream/main`: **30 ahead, 31 behind**.
+* `fork/main` vs **current** `upstream/main`: **35 added, 28 modified,
+  0 deleted**.
 
-## 2. The 102 deletions are the serious finding
+### 1.1 The premise has changed: the one-shared-commit era is over
 
-The PR #13 branch was cut from upstream's July state. Re-diffed against
-current `main`, it *deletes* 102 paths that exist upstream today — including
-his most recent work:
+This register was founded on the measurement that *fork and upstream
+share exactly one commit — the initial commit* — so the fork's work
+arrived upstream as add/add conflicts and could only be offered as
+re-applied units. **That is no longer true, and the change is his act:**
 
-```
-README.md                                   codecov.yml
-.github/screenshots/*.png  (9 files)        frontend/src/figure/*  (10 files)
-frontend/src/components/PublicationTables*  frontend/src/components/PlacementPanel.tsx
-frontend/src/components/TreesPanel.tsx      frontend/src/components/ReportPanel.tsx
-frontend/src/components/AnalysisWorkspace*  frontend/src/components/dataTable/* (6)
-```
+* upstream `main` now contains fork commits **with their history**:
+  `ef80481` (the occupancy flag base), `5f73b70` (the vsearch helper,
+  fork PR #112), `52feb60` (the server entry-point tests, fork PR #113).
+  `52feb60` *is* upstream's HEAD. His main carries our PR numbers in
+  its commit messages.
+* The merge base is no longer the initial commit but `257bcde`, his own
+  "Differential Abundance tab" commit — a genuine three-way base both
+  sides share.
+* The old "102 stale deletions" finding is **gone**: the fork now deletes
+  nothing that exists upstream (0 deleted, measured).
 
-Those deletions are an artefact of a stale base, **not** an intention. Any
-unit that still carries them would silently remove his publication-table
-builder, figure builder and phylogenetic-placement panels. Every unit in the
-catalogue is therefore built by *re-applying* file sets onto current
-`upstream/main`, never by replaying the branch.
+The consequence for this register: units are still the offer currency
+(his conditions are unchanged), but a merged unit now lands *with
+history*, and the fork can sync three-way from `257bcde` instead of
+re-resolving everything add/add.
 
-## 3. Upstream progress since the fork's base (what he has done "there")
+## 2. The five PRs he is holding, measured 2026-10-15
+
+| His PR | Unit | State | Note |
+|---|---|---|---|
+| #40 | charts markup fixpoint (fork PR #119's work) | **closed, unmerged** | closed silently 2026-10-15; no review, no comment; the one-pass strip it fixes is still on his `main`; the owner has asked on the PR whether "not wanted" was meant |
+| #54 | wildcard-bind origin fix (fork PR #121's work) | **closed, unmerged** | closed silently 2026-10-15; no review, no comment; the LAN-IP rejection it fixes is still on his `main`; the owner has asked there likewise |
+| #55 | PERMANOVA Agda proofs (fork PR #127's work) | open | single commit on his HEAD, his CI green |
+| #56 | docs + community files (fork PR #143's work, plus its review fixes) | open | single commit on his HEAD |
+| #57 | dada2 base-R refactor (first slice of his #36) | open | single commit on his HEAD, his CI green |
+
+Sequencing, stated to him in his issue #58 (2026-10-15): the fork is
+**holding its next upstream sync until these verdicts land**, because a
+sync moves his `main` and pushes every open PR past `behind_by: 0`
+against his own condition 1 — each verdict would then cost a re-cut and
+a re-review. One word per PR (merge / redo / close) settles each.
+
+## 3. Upstream progress since the fork's base (what moved "there", measured)
+
+His own commits on `upstream/main` since `257bcde`, including the
+absorptions (content that first existed fork-side, now in his commits):
 
 | Date | Commit | What moved |
 |---|---|---|
-| 2026-09-28 | `6b2693d7d` | Move the server into the package; build the frontend at install |
-| 2026-09-28 | `547b20404` | Publication table builder; remove chart customisation |
-| 2026-09-18 | `e817ed76b` | Phylogenetic placement: MAFFT, trimAl, IQ-TREE, RAxML, gappa; reference tree library |
-| 2026-09-15 | `ac099a20f` | Figure builder, reports, study analysis workspace |
-| 2026-09-12 | `5e95e5c7f` | Classifier-specific taxonomy columns, heatmaps, read funnel, tree viewer |
-| 2026-09-04 | `b3bcc0d81` | Offload DADA2 stages to the bioserver; serialise jobs per run |
-| 2026-08-29 | `46229d5e1` | Hash primers and reference databases into run configs; verify downloads |
+| 2026-10-15 | `52feb605` | **fork PR #113's server entry-point tests, with history** |
+| 2026-10-15 | `5f73b70` | **fork PR #112's vsearch helper, with history** |
+| 2026-10-15 | `ef80481` | **fork's occupancy-flag base (PR #106 line), with history** |
+| 2026-10-07 | `7799de8`..`b21d005` | the CLR (`clr_welch`) method chain — content first built fork-side |
+| 2026-10-07 | `592ddd7` | PERMANOVA per-term testing, permutations, untestable terms (his #35) |
+| 2026-10-07 | `d0b31f4`, `5b45d09` | the version-stable required-check name (fork's issue #38 finding, his #14) |
+| 2026-10-07 | `a37a642`, `578915c`, `c4b2efc`, `144d0c1` | config value gating, remote staging_dir, config-at-warn |
+| 2026-10-07 | `f71fa03`, `c860980`, `af75c8c` | the significance statuses (not-run ≠ null result), complete-separation refusal |
+| 2026-10-07 | `b86d59f` | the zCompositions-absent CI test |
 
-Two of these collide with units in the catalogue and are flagged
-`ask-first` there: the DOI/publication work (his `PublicationTables*`), and
-anything touching `frontend/src/figure/`.
+The Benjamini-Hochberg and scaling Agda proofs landed as **his PR #26,
+merged 2026-10-07**.
 
 ## 4. The six merge conditions, in his words
 
 Posted on PR #13, 2026-09-28 (abridged only by removing repetition; the
-wording is his):
+wording is his). **Unchanged and still in force**; condition 1 is
+satisfied against whichever commit is `main` when the branch is cut —
+today `52feb60`.
 
 > **1. Rebase rather than merging.** This branch shares only one commit with
 > `main`; the initial commit. … Concretely: create the branch from
@@ -90,43 +115,44 @@ wording is his):
 > stays on your fork. If you think something else belongs here, please open
 > an issue first and ask.**
 
-> **3. Delete `ui/` and all of Genie.** `ui/Project.toml` still depends on
-> Genie 6, Stipple 1 and StippleUI 1 … Remove the directory and every
+> **3. Delete `ui/` and all of Genie.** … Remove the directory and every
 > reference to it.
 
 > **4. Leave the licence metadata alone.** Do not touch `LICENSE`,
-> `CITATION.cff`, the licence and acknowledgement sections of `README.md`, or
-> the headers on files you did not write. Do not add a `NOTICE`, and do not
-> add a `LICENSES/` directory. …
+> `CITATION.cff`, … Do not add a `NOTICE`, and do not add a `LICENSES/`
+> directory. …
 
-> **5. CI must run and pass on the PR.** The branch hasn't got a single
-> workflow run. A PR with no CI will not be reviewed.
+> **5. CI must run and pass on the PR.** A PR with no CI will not be reviewed.
 
 > **6. The description must exist.** What it does, which issues it closes,
 > how to run the tests, and the Julia, R and bun versions you tested
 > against.
 
-Note that `ecefb1c` was `main` when he wrote that; `main` is now
-`6b2693d7d`. Condition 1 is satisfied against whichever commit is `main` at
-the moment the branch is cut.
+*Measured note, 2026-10-15:* the statistics cluster his condition 2 names
+(`AnalysisConfig.jl` and friends) no longer exists **on either side** —
+not on the fork's `main`, not in the fork's archives, not upstream. The
+work it described was superseded by the absorbed analyses and by fork
+issue #1, which re-derives the layer against current `main`. Condition 2
+therefore survives as a *whitelist principle* (send what is expected,
+ask before anything else), while its specific file list is historical.
 
 ## 5. Who can push what
 
-The agent token used to prepare these units is scoped to
-`metadatastician/metadatastician-governance` only. Pushing a branch to
-`hyperpolymath/MetaManifold-WebUI` returns `403 Permission denied`, and it
-cannot open or comment on anything in the upstream repo either. Consequence:
-**unit branches and PRs are pushed with your own credentials**; the agent's
-contribution is the patch, the PR body and the measurement that the patch is
-clean against current `main`. `RUNBOOK.md` has the commands.
+Measured 2026-10-15: pushes to `hyperpolymath/MetaManifold-WebUI` and PRs
+against `JoshuaJewell/MetaManifold-WebUI` work with the owner's own
+credentials — every unit PR above was pushed and opened that way, and
+the fork's own merges likewise. The agent's contribution remains the
+patch, the PR body and the measurement that the patch is clean against
+current `main`. `RUNBOOK.md` has the commands.
 
-This also means the register is the durable artefact. It lives here, in git,
-where the token can write.
+The register remains the durable artefact. It lives here, in git.
 
 ## 6. Consequence for the menu
 
-Condition 2 is a *whitelist*. Six of the ~30 units in the catalogue are on
-it (statistics ×6, ci ×2, bench ×1, tests, minimum docs). Everything else is
-offered on the understanding that it needs an issue and a yes before it is
-sent — which is exactly what the menu is for: it turns "open an issue first
-and ask" into a list he can tick.
+Condition 2 is a *whitelist*: send what he has asked for, and turn
+everything else into "open an issue first and ask" — which is what the
+catalogue is for. The re-measured menu (2026-10-15) lives in
+`UNIT-CATALOGUE.adoc`: twenty-two of the original units are measured
+stale — absorbed, superseded, spun out or parked — and the live offer
+set is the four open/closed PRs above plus the new-era units appended
+with IDs 35–42.

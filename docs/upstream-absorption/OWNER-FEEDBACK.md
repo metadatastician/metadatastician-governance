@@ -66,3 +66,46 @@ and defended #31 as deliberate:
    and ask."
 5. **Never let a unit carry a deletion of his current file.** That is how a
    stale base turns into a silent revert.
+
+---
+
+# Measured record, 2026-10-15
+
+He has not spoken since the quotes above; everything in this section is
+**measured fact from the two repos, not his words**, recorded so the next
+person does not have to re-derive it. When he answers, his answers go above
+with quotes and links, in the established form.
+
+## What he merged — without being asked twice
+
+* **Fork history is now his history.** Upstream `main` HEAD *is* a fork
+  commit — `52feb605` "test(pipeline): run the vsearch stage through the
+  server's entry points (#113)" — with `5f73b70` (the vsearch helper,
+  fork PR #112) and `ef80481` (the occupancy-flag base) beneath it. The
+  era this register was founded on — one shared commit, add/add
+  conflicts, monolithic rejections — ended with those three merges.
+* **The statistics content he named in condition 2 arrived via his own
+  Oct-7 chain** (the `clr_welch` method, the PERMANOVA terms fix, the
+  significance statuses, the stable check name, the config gating), and
+  **the Benjamini-Hochberg and scaling proofs merged as his PR #26**.
+  The specific `AnalysisConfig.jl`-family files he listed exist on no
+  branch anywhere — the condition survives as a whitelist principle,
+  not as a file list.
+
+## What he closed without a word
+
+His PRs **#40** (the charts markup fixpoint) and **#54** (the
+wildcard-bind origin fix) were closed unmerged on 2026-10-15 — no review,
+no comment. Both defects remain live on his `main` (measured:
+`replace(/<[^>]+>/g, '')` still one-pass at `AnalysisChart.tsx` and
+`charts.ts`; `_allowed_origins` still refuses a wildcard bind's reached
+IP). The owner has asked on both PRs whether "not wanted" was meant;
+either answer is fine, but the register records that no reason was given.
+
+## What he holds
+
+His PRs **#55** (PERMANOVA proofs), **#56** (docs + community files) and
+**#57** (the dada2 base-R slice of his own #36) are open, each a single
+commit on his HEAD, CI green on his side. His issue **#58** (ours, filed
+2026-10-15) states that the fork is holding its next sync for these
+verdicts and why, and asks for one word each: merge, redo, or close.

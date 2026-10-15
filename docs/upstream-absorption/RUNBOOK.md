@@ -71,3 +71,31 @@ If a unit has no patch yet, it is not ready — see `blocked` in the catalogue
 and the dependency notes. Two units are blocked on real code dependencies
 right now (01 needs the DOI bundles module and `Epistemic`; 30 is written
 against the fork's frontend layout), and both are documented there.
+
+---
+
+## Update, 2026-10-15 — the era change, and what it alters
+
+Measured in `UPSTREAM-SYNC-STATE.md` §1.1: upstream now absorbs fork
+commits **with their history** (his HEAD is a fork commit), the merge base
+is `257bcde`, and the fork deletes nothing upstream holds. The commands
+above are unchanged where it matters — every unit branch is still cut
+fresh from his current `main` with `behind_by: 0` — with these deltas:
+
+1. **The default branch ref.** `BRANCH_REF` defaults to the fork's
+   `origin/main`; the old `arena/01a0db23-*` default is gone with its
+   branch.
+2. **Condition 1 self-check, current form.** The compare runs against his
+   live HEAD (`52feb605` today); the point is unchanged — a PR older than
+   his HEAD needs a re-cut, and the fork holds its syncs so that does not
+   happen to open PRs (his issue #58).
+3. **Patches and PR bodies.** The one ready patch (14+15) is absorbed
+   (his `d0b31f4`/`5b45d09`); `patches/` and `pr-bodies/` are historical
+   now, kept because the register does not delete its own record. New
+   units' PR bodies live on the PRs themselves; this register keeps the
+   verdicts.
+4. **What "land a unit" means now.** When he merges a fork PR, the fork
+   commits land upstream with history — the next sync then picks them up
+   as a three-way merge from `257bcde`, not an add/add resolution. The
+   fork's squashed merges mean the fork still re-derives content; the
+   sync resolves deliberately, as #120 (2026-10-15) demonstrated.

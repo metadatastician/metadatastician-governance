@@ -71,3 +71,14 @@ The rest stays on the fork. It is our working record, not his reading list.
 estate's own conventions applied to a repository that is not ours. They are
 offered as one ask-first unit (32, `repo-tooling`) rather than smuggled in
 under a statistics PR — and should not be sent at all unless he asks.
+
+---
+
+## 5. Measured note, 2026-10-15 — the one exception, and it was closed
+
+The `frontend/src/**` park was breached once, deliberately: the title-markup
+fixpoint (a code-scanning remediation, fork PR #119) was offered as his PR
+#40 because it is a defect fix, not migration work. He closed it unmerged
+without a word on 2026-10-15; the one-pass strip it fixes is still on his
+`main`. The park stands for the wholesale frontend migration; the register
+records the exception so it is neither repeated casually nor forgotten.
