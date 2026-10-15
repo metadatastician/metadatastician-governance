@@ -40,6 +40,7 @@ set -uo pipefail
 UPSTREAM_REF="${UPSTREAM_REF:-upstream/main}"
 BRANCH_REF="${BRANCH_REF:-origin/main}"
 
+# Print the supplied error message to stderr and exit with status 1.
 die() { printf 'make-units: %s\n' "$*" >&2; exit 1; }
 
 git rev-parse -q --verify "$UPSTREAM_REF^{commit}" >/dev/null 2>&1 \
