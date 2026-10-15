@@ -41,13 +41,17 @@ description — never taken by editing `CITATION.cff`.
 The fork carries a `LICENSES/` directory (4 files) and a `NOTICE`. Both stay
 on the fork.
 
-## 4. The 102 stale deletions — an artefact, never an intention
+## 4. Historical: the 102 stale deletions — an artefact, never an intention
 
-The branch was cut from upstream's July state. Diffed against today's
-`upstream/main` it deletes 102 paths, including his publication-table builder,
-figure builder, phylogenetic-placement panels and all nine README
+The branch was cut from upstream's July state. At the original measurement,
+diffed against `upstream/main`, it deleted 102 paths, including his
+publication-table builder, figure builder, phylogenetic-placement panels and all nine README
 screenshots. Those deletions mean "our branch is old", not "these files
 should go".
+
+**Correction, 2026-10-15:** the fork now deletes **0 upstream paths**, as
+recorded in [UPSTREAM-SYNC-STATE.md](UPSTREAM-SYNC-STATE.md) §1.1. The
+102-path count is historical, not a current safety check.
 
 Every unit is built by **re-applying a file set onto current `main`**. No
 unit may delete a path that exists upstream unless that deletion is the

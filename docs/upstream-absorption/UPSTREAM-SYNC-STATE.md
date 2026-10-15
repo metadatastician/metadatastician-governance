@@ -154,5 +154,5 @@ everything else into "open an issue first and ask" — which is what the
 catalogue is for. The re-measured menu (2026-10-15) lives in
 `UNIT-CATALOGUE.adoc`: twenty-two of the original units are measured
 stale — absorbed, superseded, spun out or parked — and the live offer
-set is the four open/closed PRs above plus the new-era units appended
+set is the five open/closed PRs above plus the new-era units appended
 with IDs 35–42.
