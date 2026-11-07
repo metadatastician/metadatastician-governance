@@ -21,7 +21,7 @@ jobs:
       security-events: write
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+      - uses: actions/checkout@v7.0.1
         with:
           # The analysis container mounts the checkout read-write as the
           # workspace owner; do not leave the job token in .git/config for it.
@@ -87,7 +87,7 @@ jobs:
         # 1c5b6756…, v4.38.2 → 2892aa5e19bb…). The estate-approved version for
         # codeql-action is v4.38.0 (nexia-list#100); re-point the SHA at the
         # commit the comment has always claimed.
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.38.0 (nexia-list#100)
+        uses: github/codeql-action/upload-sarif@v4.39.1
         with:
           sarif_file: results.sarif
           category: oikosbot
