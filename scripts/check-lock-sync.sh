@@ -7,7 +7,7 @@
 #
 # GitHub's locked-dependencies feature makes `.github/workflows/actions.lock`
 # the manifest: the lock, not the YAML, is what gets resolved at run creation.
-# A `uses:` ref that the lock does not record *under that workflow's own path*
+# A lockable action `uses:` ref that the lock does not record *under that workflow's own path*
 # makes the whole repository unstartable — the run is refused with
 # `startup_failure`, ZERO jobs, no log and no annotation in REST or GraphQL.
 #
@@ -32,10 +32,11 @@
 # `yaml.sh` header for why that is not a style preference.
 #
 # This matters here specifically: `actions.lock` records each workflow's pins
-# as a *flow sequence under a quoted path key*, and records reusable-workflow
-# calls as `owner/repo@sha` with the sub-path stripped, and records transitive
-# pins reached through a callee in `dependencies[*].uses`. A line-oriented
-# reader gets all three wrong and says so confidently.
+# as a *flow sequence under a quoted path key*. The installed gh actions-lock
+# v0.4.1 deliberately excludes direct reusable-workflow calls from that map;
+# `yaml_actions_lock_uses_in` mirrors its lockable action set. It also records
+# transitive pins reached through a callee in `dependencies[*].uses`. A
+# line-oriented reader gets these structures wrong and says so confidently.
 #
 # ── Calibration: which differences are fatal, and which are not ─────────────
 #
@@ -149,7 +150,7 @@ printf 'lock-sync: examining %d workflow file(s) against %s\n' "${#files[@]}" "$
 declare -A WF_REFS=()
 for f in "${files[@]}"; do
   rel="$(basename "$f")"
-  if ! refs="$(yaml_uses_in "$f")"; then
+  if ! refs="$(yaml_actions_lock_uses_in "$f")"; then
     printf 'E-INSTRUMENT: .github/workflows/%s did not resolve as YAML — NO CHECK WAS PERFORMED\n' "$rel" >&2
     exit 2
   fi
