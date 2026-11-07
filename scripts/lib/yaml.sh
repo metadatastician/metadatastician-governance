@@ -217,6 +217,24 @@ yaml_uses_in() {
   '
 }
 
+# yaml_actions_lock_uses_in <file> — external action refs covered by the
+# installed gh actions-lock generator. Job-level reusable workflow calls are
+# deliberately excluded by that generator, although yaml_uses_in retains them
+# for callers that need a complete uses inventory.
+yaml_actions_lock_uses_in() {
+  local file="$1" json
+  json="$(yaml_to_json "$file")" || return 2
+  jq_read "$json" -r '
+    [ .jobs // {} | .[] | .steps // [] | .[] | .uses // empty ]
+    | map(select(type == "string"))
+    | map(select(contains("@")))
+    | map(select((startswith("./") or startswith("$/") or startswith("docker://")) | not))
+    | map(sub("^(?<slug>[^/]+/[^/@]+)(/[^@]*)?@"; "\(.slug)@"))
+    | unique
+    | .[]
+  '
+}
+
 # yaml_lock_get <lockfile> <jq-filter> [args...] — read the lockfile by parser.
 yaml_lock_get() {
   local lock="$1"

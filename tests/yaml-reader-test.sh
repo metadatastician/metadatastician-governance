@@ -105,6 +105,14 @@ expect_present "actions/setup-node@1111111111111111111111111111111111111111"
 expect_absent  "actions/never-runs@2222222222222222222222222222222222222222"
 expect_absent  "actions/local@3d3c42e5aac5ba805825da76410c181273ba90b1"
 
+echo "yaml_actions_lock_uses_in — reusable workflows are outside the generated lock"
+out="$(bash -c ". '$ROOT/scripts/lib/yaml.sh'; yaml_actions_lock_uses_in '$TMP/wf/job-level.yml'")"
+rc=$?
+if [ "$rc" -eq 0 ]; then ok "lockable-ref extraction exits 0"; else bad "lockable-ref extraction failed: $rc"; fi
+expect_absent "hyperpolymath/standards@892497fe373744874316710966b81ae6f0ea9e66"
+expect_present "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+expect_present "github/codeql-action@1c5b675653bb5c22dbe9b12b556ec555138e09fd"
+
 # ── Silence fixture: a file with no external refs must yield nothing, not fire
 cat > "$TMP/wf/none.yml" <<'YAML'
 name: no external actions
