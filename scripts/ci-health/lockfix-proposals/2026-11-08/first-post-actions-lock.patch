@@ -1,0 +1,67 @@
+diff --git a/.github/workflows/actions.lock b/.github/workflows/actions.lock
+index 234ae17..8d3834e 100644
+--- a/.github/workflows/actions.lock
++++ b/.github/workflows/actions.lock
+@@ -7,7 +7,6 @@ workflows:
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/codeql.yml':
+         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+-        - 'actions/checkout@v7.0.1'
+         - 'github/codeql-action@9b3254085494b55a0f7c4c2b3d2d52cc712ce370'
+     '.github/workflows/container-build.yml':
+         - 'actions/checkout@v7.0.1'
+@@ -18,17 +17,14 @@ workflows:
+         - 'hyperpolymath/k9-ecosystem@main'
+     '.github/workflows/estate-rules.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/governance.yml':
+-        - 'hyperpolymath/standards@bd0df9ead7faf0cdfe0e13e7966d91e28d0101d4'
++    '.github/workflows/governance.yml': []
+     '.github/workflows/guix-policy.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/hypatia-scan.yml':
+-        - 'hyperpolymath/standards@bd0df9ead7faf0cdfe0e13e7966d91e28d0101d4'
++    '.github/workflows/hypatia-scan.yml': []
+     '.github/workflows/label-triage.yml': []
+     '.github/workflows/labels.yml': []
+     '.github/workflows/lock-sync-gate.yml': []
+-    '.github/workflows/mirror.yml':
+-        - 'hyperpolymath/standards@bd0df9ead7faf0cdfe0e13e7966d91e28d0101d4'
++    '.github/workflows/mirror.yml': []
+     '.github/workflows/openssf-compliance.yml':
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/pages.yml':
+@@ -37,7 +33,7 @@ workflows:
+         - 'actions/configure-pages@v6.0.0'
+         - 'actions/deploy-pages@v5.0.1'
+         - 'actions/upload-pages-artifact@v5.0.0'
+-        - 'haskell-actions/setup@v2.12.0'
++        - 'haskell-actions/setup@v2.12.1'
+     '.github/workflows/quality.yml':
+         - 'actions/checkout@v7.0.1'
+         - 'editorconfig-checker/action-editorconfig-checker@v3.0.0'
+@@ -50,10 +46,8 @@ workflows:
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/runtime-policy.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/scorecard.yml':
+-        - 'hyperpolymath/standards@bd0df9ead7faf0cdfe0e13e7966d91e28d0101d4'
+-    '.github/workflows/secret-scanner.yml':
+-        - 'metadatastician/standards@b8f60511e76c9015d86990317162dce653c92fe1'
++    '.github/workflows/scorecard.yml': []
++    '.github/workflows/secret-scanner.yml': []
+     '.github/workflows/security-policy.yml':
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/sonarqube.yml':
+@@ -189,6 +183,11 @@ dependencies:
+         commit: 'sha1-6037f33647c3f17758a2356c80fc4a53d7e0685d'
+         owner_id: 75048950
+         repo_id: 623796603
++    'haskell-actions/setup@v2.12.1':
++        ref: 'v2.12.1'
++        commit: 'sha1-0f8e8c99d88aeb3fbfd523f1ef2c6f762d10d64d'
++        owner_id: 75048950
++        repo_id: 623796603
+     'hyperpolymath/k9-ecosystem@main':
+         ref: 'main'
+         commit: 'sha1-89f3c2702f4f650a92aa7411502f38da06abd562'

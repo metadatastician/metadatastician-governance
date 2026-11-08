@@ -1,0 +1,67 @@
+diff --git a/.github/workflows/actions.lock b/.github/workflows/actions.lock
+index bc99245..6295da6 100644
+--- a/.github/workflows/actions.lock
++++ b/.github/workflows/actions.lock
+@@ -19,14 +19,12 @@ workflows:
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/estate-rules.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/governance.yml':
+-        - 'hyperpolymath/standards@11ba299dca221b6d4e970eeb58dd17ccbb825a9a'
++    '.github/workflows/governance.yml': []
+     '.github/workflows/guix-nix-policy.yml':
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/guix-policy.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/hypatia-scan.yml':
+-        - 'hyperpolymath/standards@11ba299dca221b6d4e970eeb58dd17ccbb825a9a'
++    '.github/workflows/hypatia-scan.yml': []
+     '.github/workflows/instant-sync.yml':
+         - 'peter-evans/repository-dispatch@v4.0.1'
+     '.github/workflows/jekyll-gh-pages.yml':
+@@ -40,8 +38,7 @@ workflows:
+         - 'ruby/setup-ruby@v1.336.0'
+     '.github/workflows/label-triage.yml': []
+     '.github/workflows/labels.yml': []
+-    '.github/workflows/mirror.yml':
+-        - 'hyperpolymath/standards@11ba299dca221b6d4e970eeb58dd17ccbb825a9a'
++    '.github/workflows/mirror.yml': []
+     '.github/workflows/npm-bun-blocker.yml':
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/openssf-compliance.yml':
+@@ -65,10 +62,8 @@ workflows:
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/runtime-policy.yml':
+         - 'actions/checkout@v7.0.1'
+-    '.github/workflows/scorecard.yml':
+-        - 'hyperpolymath/standards@11ba299dca221b6d4e970eeb58dd17ccbb825a9a'
+-    '.github/workflows/secret-scanner.yml':
+-        - 'metadatastician/standards@b8f60511e76c9015d86990317162dce653c92fe1'
++    '.github/workflows/scorecard.yml': []
++    '.github/workflows/secret-scanner.yml': []
+     '.github/workflows/security-policy.yml':
+         - 'actions/checkout@v7.0.1'
+     '.github/workflows/sonarqube.yml':
+@@ -76,8 +71,8 @@ workflows:
+         - 'sonarsource/sonarqube-scan-action@v8.4.1'
+     '.github/workflows/static-analysis-gate.yml':
+         - 'actions/checkout@v7.0.1'
+-        - 'actions/download-artifact@v8.0.1'
+-        - 'actions/upload-artifact@v7.0.1'
++        - 'actions/download-artifact@v8.0.2'
++        - 'actions/upload-artifact@v7.0.2'
+         - 'erlef/setup-beam@v1.24.1'
+     '.github/workflows/ts-blocker.yml':
+         - 'actions/checkout@v7.0.1'
+@@ -134,6 +129,11 @@ dependencies:
+         commit: 'sha1-3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c'
+         owner_id: 44036562
+         repo_id: 192626254
++    'actions/download-artifact@v8.0.2':
++        ref: 'v8.0.2'
++        commit: 'sha1-9000827ccba6bdab643e8b6fd33ac0654aef8333'
++        owner_id: 44036562
++        repo_id: 192626254
+     'actions/jekyll-build-pages@v1.0.13':
+         ref: 'v1.0.13'
+         commit: 'sha1-44a6e6beabd48582f863aeeb6cb2151cc1716697'
