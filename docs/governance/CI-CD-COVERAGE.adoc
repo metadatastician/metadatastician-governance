@@ -886,7 +886,7 @@ code mutant C5 in `tests/mutation-score-test.sh` replaces the gate's
 `unlisted+=("$key")` with `fail_block "$key"` — the NOTE becomes a FAIL — and the
 corpus kills it. It is killed only by a *benign* input (B5, a well-formed
 workflow that simply is not listed), which is the concrete argument for why that
-suite carries sixteen mutants that must NOT fire: a corpus of nothing but broken
+suite carries seventeen mutants that must NOT fire: a corpus of nothing but broken
 fixtures would score a false-alarm mutant as undetected and let the gate drift
 into crying wolf. Closing the gap itself needs the same re-arm trigger as the
 lock.
