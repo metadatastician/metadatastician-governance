@@ -8,6 +8,14 @@ cat >"$T/bin/gh" <<'SH'
 #!/usr/bin/env bash
 set -e
 if [ "$1" = actions-lock ]; then
+  printf '%s\n' "$*" >>"${GENERATOR_CALLS:?}"
+  # v0.4.1 without --no-narrow rewrites partial refs (julia-actions/cache@v3
+  # -> v3.5.0), which is a YAML change, not a lock-only repair. The stub
+  # refuses rather than silently accepting the missing flag.
+  case " $* " in
+    *" --no-narrow "*) ;;
+    *) echo 'stub: --no-narrow required to preserve partial refs' >&2; exit 2 ;;
+  esac
   printf 'new-lock\n' > .github/workflows/actions.lock
   case "${FIXTURE:-}" in
     # standards#981 shapes, both measured against the real generator: one only
@@ -81,7 +89,7 @@ fi
 exit 0
 SH
 chmod +x "$T/bin/gh" "$T/checkers/"*.sh
-export PATH="$T/bin:$PATH" LOCKFIX_CHECKERS_DIR="$T/checkers" GH_TOKEN=fixture PIN_CALLS="$T/pin-calls"
+export PATH="$T/bin:$PATH" LOCKFIX_CHECKERS_DIR="$T/checkers" GH_TOKEN=fixture PIN_CALLS="$T/pin-calls" GENERATOR_CALLS="$T/generator-calls"
 run() { set +e; output=$(FIXTURE="$1" "$ROOT/scripts/ci-health/lockfix.sh" sample "$2" 'ci.yml checkout@v4; failed run 123' 2>&1); rc=$?; set -e; }
 run clean false
 [ "$rc" = 2 ] && [[ "$output" == *'require ENABLE_LOCKFIX_PRS'* ]] || { echo "FAIL live default: $rc $output"; exit 1; }
@@ -93,6 +101,13 @@ echo 'ok silence fixture: zero PRs'
 run drift false
 [ "$rc" = 0 ] && [ "$(grep -c '^FIXED ' <<<"$output")" = 1 ] || { echo "FAIL firing: $rc $output"; exit 1; }
 echo 'ok firing fixture: exactly one PR'
+# Partial-version fixture: the proposal must be lock-only and the generator
+# must have been asked to preserve the partial ref. Removing --no-narrow from
+# lockfix.sh makes the stub exit 2 and this assertion fail.
+run partial true
+[ "$rc" = 0 ] && [[ "$output" == *'PROPOSED sample/B-LOCKFIX lock-only diff (workflow YAML unchanged)'* ]] || { echo "FAIL partial-version lock-only proposal: $rc $output"; exit 1; }
+grep -q -- '--no-migrate-local-actions --no-narrow' "$GENERATOR_CALLS" || { echo "FAIL generator flags: $(cat "$GENERATOR_CALLS")"; exit 1; }
+echo 'ok partial-version fixture: --no-narrow passed, lock-only proposal'
 run instrument true
 [ "$rc" = 2 ] && [[ "$output" == *'E-INSTRUMENT'* ]] || { echo "FAIL exit-2: $rc $output"; exit 1; }
 echo 'ok checker exit-2 cannot pass'

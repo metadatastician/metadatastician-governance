@@ -11,11 +11,12 @@
 On review, the standing rule was restated: regenerate lockfiles only with
 official `gh actions-lock`; preserve full-SHA pins and least privilege; a
 merged PR or YAML parse is not acceptance. The official binary
-(`github/gh-actions-lock` v0.1.6, the version pinned in
-`.github/workflows/ci-health-sweep.yml`) could not be run in the authoring
-sandbox — the release-asset download is blocked and there is no Go toolchain
-to build it from source — so a compliant regeneration **cannot be produced
-from that environment**. Rather than leave hand-written lockfiles looking
+(`github/gh-actions-lock` v0.4.1, the version pinned in
+`.github/workflows/ci-health-sweep.yml` after governance#78) could not be
+downloaded in the authoring sandbox — the release-asset download is blocked.
+A source-built v0.4.1 was used for scratch verification, but apply-ready
+locks must still be regenerated or re-verified with the official tool on an
+owner machine / CI before merge. Rather than leave hand-written lockfiles looking
 apply-ready, they are withdrawn and the correct procedure is recorded below.
 
 ## Correct procedure (owner machine / CI with the official tool)
@@ -24,9 +25,9 @@ For each of `metadatastician/_pathroot`, `metadatastician/first-post`,
 `metadatastician/knot-knot`, on a branch off current `main`:
 
 ```bash
-gh extension install github/gh-actions-lock --pin v0.1.6
-gh actions-lock --no-migrate-local-actions   # regenerates .github/workflows/actions.lock
-gh actions-lock --verify                     # must pass
+gh extension install github/gh-actions-lock --pin v0.4.1
+gh actions-lock --no-migrate-local-actions --no-narrow   # regenerates .github/workflows/actions.lock
+gh actions-lock --verify --no-migrate-local-actions --no-narrow   # must pass
 ./scripts/check-lock-sync.sh  # (from metadatastician-governance) must pass
 git diff                               # review: lockfile only, no YAML churn
 ```

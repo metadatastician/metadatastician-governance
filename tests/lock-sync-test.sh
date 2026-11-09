@@ -248,6 +248,43 @@ else
   bad "ref case difference was folded away: rc=$rc"; cat "$TMP/out" "$TMP/err"
 fi
 
+# ── v0.4.1 parallel groups: generated entries are not stale ────────────────
+# The generator locks actions inside job-level `parallel:` groups. A gate that
+# only reads plain steps calls the generated entry stale and B-LOCKFIX refuses
+# its own repair. The missing direction must still fire.
+parallel_root() { # parallel_root <name> <record-setup-node?>
+  local d record="$2"
+  d="$(new_root "$1")"
+  cat >> "$d/.github/workflows/alpha.yml" <<YAML
+      - parallel:
+          - uses: actions/setup-node@$OTHER
+YAML
+  write_lock "$d"
+  if [ "$record" = yes ]; then
+    sed -i "s|^        - 'actions/checkout@$SHA'$|&\n        - 'actions/setup-node@$OTHER'|" "$d/.github/workflows/actions.lock"
+    cat >> "$d/.github/workflows/actions.lock" <<YAML
+    'actions/setup-node@$OTHER':
+        ref: '$OTHER'
+        commit: 'sha1-$OTHER'
+        owner_id: 44036562
+        repo_id: 194000000
+YAML
+  fi
+  printf '%s' "$d"
+}
+
+d="$(parallel_root parallel_recorded yes)"
+run_check "$d"; rc=$?
+if [ "$rc" -eq 0 ]; then ok "parallel-group pin recorded: exit 0, not stale"; else bad "parallel-group pin recorded fired: rc=$rc"; cat "$TMP/out" "$TMP/err"; fi
+
+d="$(parallel_root parallel_missing no)"
+run_check "$d"; rc=$?
+if [ "$rc" -eq 1 ] && grep -q "refs missing from the lockfile: actions/setup-node@$OTHER" "$TMP/out"; then
+  ok "parallel-group pin missing: exit 1 and named"
+else
+  bad "parallel-group pin missing: rc=$rc"; cat "$TMP/out"
+fi
+
 # ── Guard against a regression to the text readers (rule Y-1) ──────────────
 # The gate must reach its verdict through the parser. A line-oriented reader
 # gets a flow-style document wrong, so this fixture is what notices if one is

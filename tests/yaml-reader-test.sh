@@ -113,6 +113,42 @@ expect_absent "hyperpolymath/standards@892497fe373744874316710966b81ae6f0ea9e66"
 expect_present "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 expect_present "github/codeql-action@1c5b675653bb5c22dbe9b12b556ec555138e09fd"
 
+# ── v0.4.1 parallel groups: one level deep, step-level classification ──────
+cat > "$TMP/wf/parallel.yml" <<'YAML'
+name: parallel
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - parallel:
+          - uses: actions/setup-java@v4
+          - uses: actions/setup-node@v4
+          - uses: actions/setup-node/sub@v4
+          - parallel:
+              - uses: actions/setup-go@v4
+          - uses: docker://alpine:3
+          - uses: ./local/action
+          - uses: $/self/action
+          - with:
+              uses: actions/not-a-ref@v1
+      - parallel: not-an-array
+YAML
+out="$(bash -c ". '$ROOT/scripts/lib/yaml.sh'; yaml_actions_lock_uses_in '$TMP/wf/parallel.yml'")"
+rc=$?
+if [ "$rc" -eq 0 ]; then ok "parallel-group extraction exits 0"; else bad "parallel-group extraction failed: $rc"; fi
+expect_present "actions/checkout@v4"
+expect_present "actions/setup-java@v4"
+expect_present "actions/setup-node@v4"
+expect_absent "actions/setup-go@v4"
+expect_absent "actions/not-a-ref@v1"
+expect_absent "docker://alpine:3"
+expect_absent "./local/action"
+expect_absent "$/self/action"
+# sub-path normalisation must agree with the plain-step path
+if printf '%s\n' "$out" | grep -qxF 'actions/setup-node/sub@v4'; then bad "parallel sub-path was not normalised"; else ok "parallel sub-path normalised to owner/repo"; fi
+
 # ── Silence fixture: a file with no external refs must yield nothing, not fire
 cat > "$TMP/wf/none.yml" <<'YAML'
 name: no external actions

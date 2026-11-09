@@ -907,7 +907,8 @@ YAML-POLICY rule Y-1 exists to end. Two different readers must not be conflated
 here. The complete inventory reader (`yaml_uses_in`) does read job-level `uses:`
 and is tested on it (`tests/yaml-reader-test.sh`, plus the property test's
 job-level generator). The lock gate's extractor (`yaml_actions_lock_uses_in`)
-is deliberately narrower — step-level only — since #73 aligned it with the
+is deliberately narrower — step-level only, including the one-level
+`parallel:` groups locked by v0.4.1 — since #73 aligned it with the
 generator's documented scope, so a missing reusable-workflow record is *not*
 drift for that gate: former input mutant S14, which expected exactly that to
 fail, was reclassified benign as B12 in #74. On current `main`

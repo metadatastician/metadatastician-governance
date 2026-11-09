@@ -109,5 +109,10 @@ jobs:
           CI_HEALTH_FENCED_ACTORS: 'dependabot[bot] coderabbitai[bot] arena-ai-coding-agent[bot]'
         run: |
           chmod +x scripts/ci-health/*.sh
-          gh extension install github/gh-actions-lock --pin v0.1.6
+          # v0.4.1 reads lockfile schema v0.0.3. The former v0.1.6 pin refused
+          # newer locks ("lockfile version v0.0.3 is newer than this binary
+          # supports"), so B-LOCKFIX could not repair _pathroot/first-post
+          # (issue #30, 2026-11-08). Keep the generator current with the locks
+          # Dependabot/gh actions-lock now write.
+          gh extension install github/gh-actions-lock --pin v0.4.1
           ./scripts/ci-health/sweep.sh
