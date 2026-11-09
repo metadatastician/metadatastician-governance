@@ -41,7 +41,7 @@ cp -a "$tmp/.github/workflows/." "$tmp/before/"
 git -C "$tmp" add .github/workflows && git -C "$tmp" -c user.name=ci-health -c user.email=ci-health@users.noreply.github.com commit -qm 'Mirror API workflow snapshot' || fail 'temporary baseline commit failed'
 command -v gh >/dev/null || fail 'gh unavailable'
 # gh actions-lock operates on the mirrored root only; never on another checkout.
-(cd "$tmp" && gh actions-lock --no-migrate-local-actions) || fail 'generator unavailable or failed'
+(cd "$tmp" && gh actions-lock --no-migrate-local-actions --no-narrow) || fail 'generator unavailable or failed'
 yaml_restored=false
 # Diff every workflow YAML byte-for-byte; a changed YAML is a standards#981
 # judgement call, never an automated commit. Compare names as well as contents.

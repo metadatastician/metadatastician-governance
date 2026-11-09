@@ -262,7 +262,8 @@ m_S13() { # THE INCIDENT: the workflow pins a SHA, the lock records the tag.
           sed -i "s#        - 'actions/checkout@$SHA'#        - 'actions/checkout@$TAGREF'#" "$1/.github/workflows/actions.lock"
           sed -i "s#    'actions/checkout@$SHA':#    'actions/checkout@$TAGREF':#" "$1/.github/workflows/actions.lock"
           sed -i "s#        ref: '$SHA'#        ref: '$TAGREF'#" "$1/.github/workflows/actions.lock"; }
-m_S14() { # a job-level reusable call, invisible to a step-level-only extractor
+m_S14() { # a job-level reusable call, deliberately outside gh actions-lock's
+          # step-level lock scope (#73). The gate must spare it, not report drift.
           printf '  reusable:\n    uses: %s\n' "$REUSABLE" >> "$1/.github/workflows/alpha.yml"; }
 m_S15() { printf 'jobs:\n  build:\n    steps:\n      - uses: actions/checkout@abc\n  bad: [\n' > "$1/.github/workflows/beta.yml"; }
 m_S16() { printf '  bad_indent: [\n' >> "$1/.github/workflows/actions.lock"; }
@@ -390,7 +391,6 @@ CATALOGUE=(
   "S11|sync|new_sync_fixture|1|m_S11||transitive pin is not recorded as a dependency"
   "S12|sync|new_sync_fixture|1|m_S12||not a path under .github/workflows"
   "S13|sync|new_sync_fixture|1|m_S13||actions/checkout@$TAGREF"
-  "S14|sync|new_sync_fixture|1|m_S14||hyperpolymath/standards@892497fe373744874316710966b81ae6f0ea9e66"
   "S2b|sync|new_sync_fixture|1|m_S2b||stale lockfile entries: actions/setup-node@$OTHER"
   "S20|sync|new_sync_fixture|1|m_S20||schema requires commit: sha1-"
   # check-lock-sync.sh — the two ways it can fake a verdict, must answer 2
@@ -411,6 +411,9 @@ CATALOGUE=(
   "B9|sync|new_sync_fixture|0|m_B9||every workflow agrees"
   "B10|sync|new_sync_fixture|0|m_B10||every workflow agrees"
   "B11|sync|new_sync_fixture|0|m_B11||every workflow agrees"
+  # S14: a job-level reusable call is outside the generator's lock scope (#73),
+  # so the gate must spare it rather than report B-LOCKFILE drift.
+  "S14|sync|new_sync_fixture|0|m_S14||"
   # check-lock-pins.sh — the determinate/indeterminate split, driven by the stub
   "P1|pins|new_pins_fixture|0||STUB_CODE=200|resolved 2, dead 0, unverified 0"
   "P2|pins|new_pins_fixture|1||STUB_CODE=404|DEAD actions/setup-node"
