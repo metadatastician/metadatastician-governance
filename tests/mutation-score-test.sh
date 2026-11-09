@@ -262,8 +262,7 @@ m_S13() { # THE INCIDENT: the workflow pins a SHA, the lock records the tag.
           sed -i "s#        - 'actions/checkout@$SHA'#        - 'actions/checkout@$TAGREF'#" "$1/.github/workflows/actions.lock"
           sed -i "s#    'actions/checkout@$SHA':#    'actions/checkout@$TAGREF':#" "$1/.github/workflows/actions.lock"
           sed -i "s#        ref: '$SHA'#        ref: '$TAGREF'#" "$1/.github/workflows/actions.lock"; }
-m_S14() { # a job-level reusable call, deliberately outside gh actions-lock's
-          # step-level lock scope (#73). The gate must spare it, not report drift.
+m_B12() { # job-level reusable calls are outside gh actions-lock coverage
           printf '  reusable:\n    uses: %s\n' "$REUSABLE" >> "$1/.github/workflows/alpha.yml"; }
 m_S15() { printf 'jobs:\n  build:\n    steps:\n      - uses: actions/checkout@abc\n  bad: [\n' > "$1/.github/workflows/beta.yml"; }
 m_S16() { printf '  bad_indent: [\n' >> "$1/.github/workflows/actions.lock"; }
@@ -411,9 +410,7 @@ CATALOGUE=(
   "B9|sync|new_sync_fixture|0|m_B9||every workflow agrees"
   "B10|sync|new_sync_fixture|0|m_B10||every workflow agrees"
   "B11|sync|new_sync_fixture|0|m_B11||every workflow agrees"
-  # S14: a job-level reusable call is outside the generator's lock scope (#73),
-  # so the gate must spare it rather than report B-LOCKFILE drift.
-  "S14|sync|new_sync_fixture|0|m_S14||"
+  "B12|sync|new_sync_fixture|0|m_B12||every workflow agrees"
   # check-lock-pins.sh — the determinate/indeterminate split, driven by the stub
   "P1|pins|new_pins_fixture|0||STUB_CODE=200|resolved 2, dead 0, unverified 0"
   "P2|pins|new_pins_fixture|1||STUB_CODE=404|DEAD actions/setup-node"

@@ -886,7 +886,7 @@ code mutant C5 in `tests/mutation-score-test.sh` replaces the gate's
 `unlisted+=("$key")` with `fail_block "$key"` — the NOTE becomes a FAIL — and the
 corpus kills it. It is killed only by a *benign* input (B5, a well-formed
 workflow that simply is not listed), which is the concrete argument for why that
-suite carries sixteen mutants that must NOT fire: a corpus of nothing but broken
+suite carries seventeen mutants that must NOT fire: a corpus of nothing but broken
 fixtures would score a false-alarm mutant as undetected and let the gate drift
 into crying wolf. Closing the gap itself needs the same re-arm trigger as the
 lock.
@@ -903,10 +903,18 @@ job-level ref that *was* correctly present in the lock was then reported `stale`
 that file. The mechanism for the asymmetry is the step-level parse count: zero
 step-level refs skips the stale check, nine step-level refs makes the unmatched
 job-level entry look orphaned. This is exactly the class of error the estate's
-YAML-POLICY rule Y-1 exists to end. The checkers in this repository read
-job-level `uses:` correctly and are tested on it (`tests/yaml-reader-test.sh`, and
-input mutant S14 plus the property test's job-level generator in the newer
-suites), so the gap is in the generator, not in the gate. Its own README adds a
+YAML-POLICY rule Y-1 exists to end. Two different readers must not be conflated
+here. The complete inventory reader (`yaml_uses_in`) does read job-level `uses:`
+and is tested on it (`tests/yaml-reader-test.sh`, plus the property test's
+job-level generator). The lock gate's extractor (`yaml_actions_lock_uses_in`)
+is deliberately narrower — step-level only — since #73 aligned it with the
+generator's documented scope, so a missing reusable-workflow record is *not*
+drift for that gate: former input mutant S14, which expected exactly that to
+fail, was reclassified benign as B12 in #74. On current `main`
+`tests/mutation-score-test.sh` reports detection 100.0% (25/25), specificity
+100.0% (17/17) and code-mutation 100.0% (6/6). So the gap is in the
+generator, and the gate now matches the generator rather than the complete
+reader. Its own README adds a
 second limitation that matters for the deferred callers: "Workflows in the
 lockfile cannot use local-path actions, these will be skipped for onboarding."
 
