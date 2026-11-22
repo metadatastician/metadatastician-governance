@@ -190,7 +190,7 @@ silently scoring a mutant that was never constructed.
   job-level reusable `uses:` the estate's lockfile extractor went blind on; the
   tag-versus-SHA ref disagreement that refused this repository's own sweep runs
   (35957324128, 36096095736, 36218967182, 36295476367); the unauthorised
-  OpenSSF Best Practices badge in `scripts/tests/test_readme_badges.py`.
+  OpenSSF Best Practices badge in `tests/readme-badges-test.sh`.
 
 | 14. Chaos / resilience
 | N/A
